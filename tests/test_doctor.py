@@ -16,7 +16,7 @@ def xdg(tmp_path, monkeypatch):
 
 
 def test_font_list_matches_what_the_installer_fetches():
-    installed = set(re.findall(r"(\w[\w.-]*\.(?:ttf|bdf))", (ROOT / "install.sh").read_text()))
+    installed = set(re.findall(r"(\w[\w.-]*\.(?:ttf|otf|bdf))", (ROOT / "install.sh").read_text()))
     installed -= {"TerminusTTF-Bold-4.49.3.ttf", "t0-16i.bdf"}
     assert set(doctor.FONT_FILES) == installed
 

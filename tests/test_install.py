@@ -109,6 +109,10 @@ def test_shell_layer_in_a_fresh_home(home):
     assert (home / ".config/athanor/athanor.toml").is_file()
     assert (home / ".local/share/fonts/athanor/Px437_Tandy2K.ttf").exists()
     assert (home / ".local/share/fonts/athanor/t0-16i-uni.bdf").exists()
+    for bundled in ("Athanor-Regular.ttf", "Vellum-Regular.ttf", "MEK-Mono.otf"):
+        assert (home / ".local/share/fonts/athanor" / bundled).read_bytes() == (
+            ROOT / "fonts" / bundled
+        ).read_bytes()
     assert not (home / ".config/hypr").exists()
     assert "pacman -S --needed" not in home.log.read_text()
 

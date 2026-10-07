@@ -246,11 +246,20 @@ install_fonts() {
   say "fonts in $fonts"
   local f
   local oldschool=(PxPlus_IBM_VGA_8x16.ttf Px437_CompaqThin_8x16.ttf Px437_Tandy2K.ttf Px437_ATT_PC6300.ttf)
-  for f in TerminusTTF-4.49.3.ttf CozetteVector.ttf t0-16i-uni.bdf "${oldschool[@]}"; do
+  # Shipped in fonts/ rather than downloaded (see NOTICE.md).
+  local bundled=(
+    Athanor-Regular.ttf OssuaryDisplay-Regular.ttf
+    Vellum-Regular.ttf Vellum-Bold.ttf Vellum-Italic.ttf Vellum-BoldItalic.ttf
+    MEK-Mono.otf
+  )
+  for f in TerminusTTF-4.49.3.ttf CozetteVector.ttf t0-16i-uni.bdf "${oldschool[@]}" "${bundled[@]}"; do
     # Running terminals won't see new fonts until they restart.
     [[ -f $fonts/$f ]] || fresh_fonts=1
   done
   run mkdir -p "$fonts"
+  for f in "${bundled[@]}"; do
+    cmp -s "$root/fonts/$f" "$fonts/$f" 2>/dev/null || run cp "$root/fonts/$f" "$fonts/$f"
+  done
   local missing=()
   for f in "${oldschool[@]}"; do
     [[ -f $fonts/$f ]] || missing+=("ttf - Px (pixel outline)/$f")

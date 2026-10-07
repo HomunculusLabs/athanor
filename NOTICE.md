@@ -18,7 +18,15 @@ in the public domain too.
 
 ## Fonts
 
-None are included here. The installer downloads them.
+These are included in `fonts/`:
+
+- Athanor, Vellum (Regular, Bold, Italic, Bold Italic) and Ossuary Display by
+  Claude, 2026, dedicated to the public domain under
+  [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
+- MEK Mono, copyright 2023 Michael Alexander (MEK.txt), included with the
+  author's permission
+
+The installer downloads the rest:
 
 - IBM VGA 8x16, Compaq Thin 8x16, Tandy 2000 and AT&T PC6300 from VileR's
   [Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/), CC BY-SA 4.0

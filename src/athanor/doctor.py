@@ -22,6 +22,13 @@ FONT_FILES = (
     "t0-16i-uni.bdf",
     "Jacquard24-Regular.ttf",
     "IMFeENrm28P.ttf",
+    "Athanor-Regular.ttf",
+    "OssuaryDisplay-Regular.ttf",
+    "Vellum-Regular.ttf",
+    "Vellum-Bold.ttf",
+    "Vellum-Italic.ttf",
+    "Vellum-BoldItalic.ttf",
+    "MEK-Mono.otf",
 )
 HYPRLAND_TARGET = (0, 56)
 BEGIN_MARK = ">>> athanor >>>"

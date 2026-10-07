@@ -24,6 +24,22 @@ HUES = {
 }
 
 
+def screen_size() -> tuple[int, int]:
+    # Hyprland can be unreachable mid-reload or from hooks without its env;
+    # fall back to the last size we saw rather than rendering 1080p plates.
+    remembered = state_dir() / "screen"
+    size = hypr.screen_size()
+    if size:
+        with contextlib.suppress(OSError):
+            write_atomic(remembered, f"{size[0]}x{size[1]}\n")
+        return size
+    try:
+        w, h = remembered.read_text().strip().split("x")
+        return int(w), int(h)
+    except (OSError, ValueError):
+        return DEFAULT_SIZE
+
+
 def saved_scheme() -> str:
     try:
         name = (state_dir() / "scheme").read_text().strip()
@@ -106,7 +122,7 @@ def start_wallpaper(path: Path) -> None:
 
 def current_walls(size: tuple[int, int] | None = None):
     cfg = config.load()
-    size = size or hypr.screen_size() or DEFAULT_SIZE
+    size = size or screen_size()
     return wall.render(palette.load(saved_scheme()), size, cache_dir() / "wall", cfg.pixel_scale)
 
 
@@ -199,6 +215,7 @@ def tokens(
         "card_png": str(cache_dir() / "tarot-day.png"),
         "term_font": face.family,
         "term_px": str(face.px),
+        "term_fallback": f",{face.fallback}" if face.fallback else "",
         "term_font_bold": f"{face.bold}:pixelsize={face.px}"
         if face.bold
         else f"{face.family}:pixelsize={face.px}:weight=bold",
@@ -217,7 +234,7 @@ def apply(
 ):
     scheme = palette.load(name)
     cfg = config.load()
-    size = size or hypr.screen_size() or DEFAULT_SIZE
+    size = size or screen_size()
 
     try:
         walls = wall.render(scheme, size, cache_dir() / "wall", cfg.pixel_scale)
@@ -257,7 +274,7 @@ def apply(
 
 def prerender(size: tuple[int, int] | None = None) -> None:
     cfg = config.load()
-    size = size or hypr.screen_size() or DEFAULT_SIZE
+    size = size or screen_size()
     for name in palette.SCHEMES:
         with contextlib.suppress(wall.MissingTool, subprocess.CalledProcessError):
             wall.render(palette.load(name), size, cache_dir() / "wall", cfg.pixel_scale)

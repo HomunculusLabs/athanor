@@ -91,11 +91,13 @@ def test_lock_card_is_capped_on_a_big_screen():
     assert transmute.lock_layout((3840, 2160), 1900, 3)["card_w"] == 318
 
 
-def test_jacquard_name_is_not_read_as_a_size(tmp_path):
+def test_lock_clock_is_ossuary_on_its_grid(tmp_path):
     scheme = palette.load("umber")
     toks = transmute.tokens(scheme, (1366, 768), None, tmp_path / "s.png", "x")
     render.render_tree(tmp_path / "out", toks)
-    assert "font_family = Jacquard 24,\n" in (tmp_path / "out/hypr/hyprlock.conf").read_text()
+    lock = (tmp_path / "out/hypr/hyprlock.conf").read_text()
+    # 144pt is 192px, six times Ossuary Display's 32px em.
+    assert "font_family = Ossuary Display\n    font_size = 144\n" in lock
 
 
 def test_inset_box_crops_inside_the_frame():
@@ -162,3 +164,11 @@ def test_the_lockscreen_greets_the_character(tmp_path, monkeypatch):
     assert toks["name"] == "Prospero"
     monkeypatch.setattr(transmute.getpass, "getuser", lambda: "nachi")
     assert transmute.tokens(scheme, (1366, 768), None, tmp_path / "s.png", "x")["name"] == "nachi"
+
+
+def test_mek_brings_its_icon_fallback(tmp_path):
+    scheme = palette.load("umber")
+    toks = transmute.tokens(scheme, (1920, 1080), None, tmp_path / "s.png", "x", "mek")
+    render.render_tree(tmp_path / "out", toks)
+    foot = (tmp_path / "out/foot/foot.ini").read_text()
+    assert "font=MEK Mono:pixelsize=22,JetBrainsMono Nerd Font:pixelsize=20\n" in foot

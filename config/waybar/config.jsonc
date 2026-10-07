@@ -1,18 +1,99 @@
 {
   "layer": "top",
   "position": "bottom",
-  "height": 24,
+  // A floating strip in the middle of the screen rather than a line across
+  // all of it: on an ultrawide the two ends are a head turn apart. Every
+  // module has a fixed width in style.css, so changing numbers never resize
+  // the bar; this width is only a floor.
+  "width": 1000,
+  "height": 44,
+  "margin-bottom": 12,
   "spacing": 0,
-  "modules-left": ["custom/rogue"],
-  "modules-right": ["custom/sky"],
+  "modules-left": [
+    "custom/rogue",
+    "group/controls",
+    "custom/claude",
+    "custom/chatgpt",
+    "custom/sky",
+    "custom/moon"
+  ],
+
   "custom/rogue": {
     "exec": "~/.local/bin/athanor status --waybar",
     "return-type": "json",
-    "restart-interval": 5
+    "restart-interval": 5,
+    "align": 0.5
+  },
+
+  // Scroll to change, click for a menu (sound: click mutes, right-click picks).
+  "group/controls": {
+    "orientation": "horizontal",
+    "modules": ["custom/brightness", "wireplumber", "bluetooth"]
+  },
+  "custom/brightness": {
+    "exec": "omarchy brightness display --no-osd",
+    "format": "<span font_desc='Athanor 32px' fallback='false'>☼</span> {}%",
+    "interval": 60,
+    "signal": 8,
+    "align": 0.5,
+    "on-scroll-up": "omarchy brightness display +5% >/dev/null; pkill -RTMIN+8 waybar",
+    "on-scroll-down": "omarchy brightness display 5%- >/dev/null; pkill -RTMIN+8 waybar",
+    "on-click": "~/.local/bin/athanor pick brightness; pkill -RTMIN+8 waybar",
+    "tooltip-format": "Brightness. Scroll to change, click for a level."
+  },
+  "wireplumber": {
+    "format": "♪ {volume}%",
+    "format-muted": "♪ mute",
+    "scroll-step": 5,
+    "align": 0.5,
+    "max-volume": 100,
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "~/.local/bin/athanor pick sound",
+    "tooltip-format": "{node_name}\nScroll to change, click to mute, right-click to choose the output."
+  },
+  "bluetooth": {
+    "format": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> on",
+    "format-off": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> off",
+    "format-disabled": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> off",
+    "format-connected": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> {num_connections}",
+    "tooltip-format": "Bluetooth {status}\nClick for devices.",
+    "tooltip-format-connected": "{device_enumerate}\nClick for devices.",
+    "tooltip-format-enumerate-connected": "{device_alias}",
+    "tooltip-format-enumerate-connected-battery": "{device_alias}  {device_battery_percentage}%",
+    "on-click": "~/.local/bin/athanor pick bluetooth",
+    "align": 0.5
+  },
+
+  // Each subscription is its own well of energy. Click to switch between its
+  // pools (the 5-hour session and the week), right-click to read them again.
+  "custom/claude": {
+    "exec": "~/.local/bin/athanor agents --waybar --only claude",
+    "return-type": "json",
+    "restart-interval": 5,
+    "align": 0.5,
+    "on-click": "~/.local/bin/athanor agents --toggle claude",
+    "on-click-right": "~/.local/bin/athanor agents --refresh"
+  },
+  "custom/chatgpt": {
+    "exec": "~/.local/bin/athanor agents --waybar --only codex",
+    "return-type": "json",
+    "restart-interval": 5,
+    "align": 0.5,
+    "on-click": "~/.local/bin/athanor agents --toggle codex",
+    "on-click-right": "~/.local/bin/athanor agents --refresh"
   },
   "custom/sky": {
     "exec": "~/.local/bin/athanor hour --waybar --follow",
     "return-type": "json",
-    "restart-interval": 5
+    "restart-interval": 5,
+    "align": 0.5
+  },
+  // Click for the month's almanac in a floating page.
+  "custom/moon": {
+    "exec": "~/.local/bin/athanor moon --waybar",
+    "return-type": "json",
+    "restart-interval": 5,
+    "align": 0.5,
+    "on-click": "~/.local/bin/athanor almanac --window"
   }
 }

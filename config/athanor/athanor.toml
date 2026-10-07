@@ -21,7 +21,7 @@ description = "Dust hangs in the lamplight. A terminal hums on the desk."
 [display]
 # Screen pixels per wallpaper pixel. 0 picks 2 (3 at 4K).
 pixel_scale = 0
-# tandy, terminus, cozette, compaq or vga. Applies at the next transmute.
+# tandy, terminus, cozette, compaq, vga or mek. Applies at the next transmute.
 terminal_font = "tandy"
 
 [transmute]

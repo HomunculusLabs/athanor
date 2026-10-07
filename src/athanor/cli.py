@@ -9,16 +9,20 @@ import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from . import (
+    agents,
+    almanac,
     ansi,
     config,
     guide,
     hypr,
     inventory,
+    moon,
     palette,
+    pick,
     sigil,
     sky,
     stages,
@@ -54,9 +58,220 @@ def _hour_lines(now: datetime, cfg) -> dict[str, str]:
         "moon": f"Moon {sky.moon_phase(now)}, {sky.moon_age(now):.0f} days old",
         "card": f"Card of the day: {card.title}",
         "bar": f"{now:%a %-d %b  %H:%M}  Hour of {hour}{approx}  Moon: {sky.moon_trend(now)}",
-        "sun": f"Sunrise {ph.sunrise:%H:%M}, sunset {ph.sunset:%H:%M}"
+        "sun": f"Sunrise {ph.sunrise.astimezone(now.tzinfo):%H:%M}, "
+        f"sunset {ph.sunset.astimezone(now.tzinfo):%H:%M}"
         + ("  (no [place] set; using 6:00 and 18:00)" if ph.approximate else ""),
     }
+
+
+# Athanor draws the classical planets and the moon's phases on
+# the same pixel grid as the bar text.
+PLANET_SIGNS = {
+    "Saturn": "\u2644",
+    "Jupiter": "\u2643",
+    "Mars": "\u2642",
+    "Sun": "\u2609",
+    "Venus": "\u2640",
+    "Mercury": "\u263f",
+    "Moon": "\u263d",
+}
+SIGN_FONT = "Athanor 32px"
+# Signs and moon phases are also emoji. Without fallback Pango keeps them in
+# Athanor's line art instead of reaching for a colour emoji font (and its
+# taller line, which stretches the bar).
+
+
+def _sign(text: str, color: str, underline: bool = False) -> str:
+    under = ' underline="single"' if underline else ""
+    return (
+        f'<span font_desc="{SIGN_FONT}" fallback="false"{under} foreground="{color}">{text}</span>'
+    )
+
+
+def _moon_sign(now: datetime) -> str:
+    index = int(sky.moon_age(now) / sky.SYNODIC_MONTH * 8 + 0.5) % 8
+    return chr(0x1F311 + index)
+
+
+def _bar_markup(now: datetime, cfg) -> str:
+    ph = sky.planetary_hour(now, cfg.place)
+    roles = palette.load(transmute.saved_scheme()).roles
+
+    def sign(text: str) -> str:
+        return _sign(text, roles["active"])
+
+    def dim(text: str) -> str:
+        return f'<span foreground="{roles["dim"]}">{html.escape(text)}</span>'
+
+    approx = dim("~") if ph.approximate else ""
+    hour = sky.with_article(ph.planet)
+    return "   ".join(
+        (
+            f"{now:%a %-d %b}  {now:%H:%M}",
+            f"{sign(PLANET_SIGNS[ph.day_ruler] + PLANET_SIGNS[ph.planet])} Hour of {hour}{approx}",
+            f"{sign(_moon_sign(now))} {sky.moon_trend(now)}",
+        )
+    )
+
+
+def _moon_lines(now: datetime) -> tuple[str, str]:
+    """The biodynamic reading: bar markup and a tooltip."""
+    cfg = config.load()
+    roles = palette.load(transmute.saved_scheme()).roles
+    utc = now.astimezone(UTC)
+    here = moon.constellation(utc)
+    rising = moon.ascending(utc)
+    change = moon.next_change(utc)
+    node, perigee = moon.at_node(utc), moon.near_perigee(utc)
+    week = almanac.days(now.date(), 7, now.tzinfo)
+
+    def dim(text: str) -> str:
+        return f'<span foreground="{roles["dim"]}">{html.escape(text)}</span>'
+
+    # Only what matters at a glance: today's kind of day, whether the sap is
+    # rising or sinking, a red sign when the hour is unlucky, and when the
+    # day next turns. The constellation, the week and the reasons are in the
+    # tooltip and the almanac.
+    lucky = not (node or perigee)
+    parts = [
+        _sign(here.day_sign, roles["active"] if lucky else roles["bar_warn"])
+        + f" {here.day} "
+        + ("\u2191" if rising else "\u2193"),
+    ]
+    if node:
+        north = moon.position(utc + timedelta(hours=1)).latitude > moon.position(utc).latitude
+        parts.append(_sign("\u260a" if north else "\u260b", roles["bar_warn"]))
+    elif perigee:
+        parts.append(_sign("\u2641", roles["bar_warn"]))  # the Earth, too near
+    if change:
+        when, nxt = change
+        local = when.astimezone(now.tzinfo)
+        parts.append(
+            dim("then ") + _sign(nxt.day_sign, roles["dim"]) + dim(f" {nxt.day} {local:%a %H:%M}")
+        )
+    text = "  ".join(parts)
+
+    tip = [
+        almanac.dwelling(here),
+        f"{almanac.season(now, cfg.place)}: {almanac.work(here.day, now, cfg.place)}",
+        almanac.KEEPING[here.day],
+        almanac.sap(rising, now, cfg.place),
+    ]
+    if node:
+        tip.append(almanac.UNFAVOURABLE["node"])
+    if perigee:
+        tip.append(almanac.UNFAVOURABLE["perigee"])
+    if change:
+        when, nxt = change
+        tip.append(f"Into {nxt.name} ({nxt.day.lower()}) {when.astimezone(now.tzinfo):%A %H:%M}.")
+    tip.append("")
+    tip.append(
+        "The week: "
+        + ", ".join(
+            f"{d.date:%a} {d.kind.day.lower()}" + (" (unlucky)" if d.unfavourable else "")
+            for d in week
+        )
+    )
+    tip.append("Click for the almanac.")
+    return text, "\n".join(tip)
+
+
+def _announce(here: moon.Constellation) -> None:
+    """Say so on the message line when the Moon moves into a new constellation."""
+    seen = state_dir() / "moon-seen"
+    try:
+        before = seen.read_text().strip()
+    except OSError:
+        before = ""
+    if before == here.name:
+        return
+    write_atomic(seen, here.name + "\n")
+    if before:
+        transmute.run("notify-send", "-a", "athanor", almanac.entering(here))
+
+
+def cmd_pick(args) -> None:
+    {"bluetooth": pick.bluetooth, "sound": pick.sound, "brightness": pick.brightness}[args.what]()
+
+
+def cmd_moon(args) -> None:
+    while True:
+        now = _now()
+        text, tip = _moon_lines(now)
+        if not args.waybar:
+            print(tip)
+            return
+        _announce(moon.constellation(now.astimezone(UTC)))
+        print(json.dumps({"text": text, "tooltip": tip}), flush=True)
+        time.sleep(300 - time.time() % 300 + 0.5)
+
+
+def _any_key(prompt: str) -> None:
+    """NetHack's --More--: any key goes on."""
+    import termios
+    import tty
+
+    print(prompt, end="", flush=True)
+    try:
+        fd = sys.stdin.fileno()
+        saved = termios.tcgetattr(fd)
+    except (OSError, termios.error, ValueError):
+        return
+    try:
+        tty.setcbreak(fd)
+        sys.stdin.read(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+
+
+def cmd_almanac(args) -> None:
+    if args.window:
+        # The terminal's own face for text, Athanor for every
+        # sign it lacks: zodiac, moon phases, the nodes, the four day signs.
+        face = config.TERMINAL_FONTS[config.load().terminal_font]
+        fonts = f"{face.family}:pixelsize={face.px},{SIGN_FONT.split()[0]}:pixelsize=32"
+        if face.fallback:
+            fonts += f",{face.fallback}"
+        subprocess.Popen(
+            [
+                "uwsm-app",
+                "--",
+                "foot",
+                "--app-id",
+                args.app_id,
+                "--title",
+                "Almanac",
+                "--config",
+                str(Path.home() / ".config/athanor/current/foot/foot.ini"),
+                "-o",
+                f"font={fonts}",
+                "-e",
+                str(Path.home() / ".local/bin/athanor"),
+                "almanac",
+                "--wait",
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return
+    now = _now()
+    roles = palette.load(transmute.saved_scheme()).roles
+    print(
+        almanac.page(
+            now.date(),
+            args.days,
+            now.tzinfo,
+            roles,
+            color=sys.stdout.isatty() or args.color,
+            place=config.load().place,
+        )
+    )
+    if args.wait:
+        _any_key("  --More--")
 
 
 def _lock_markup(lines: dict[str, str], colors: str) -> str:
@@ -81,7 +296,8 @@ def cmd_hour(args) -> None:
     while True:
         lines = _hour_lines(_now(), cfg)
         tip = "\n".join(lines[k] for k in ("ruler", "trump", "sun", "moon", "card"))
-        print(json.dumps({"text": lines["bar"], "tooltip": tip}), flush=True)
+        text = _bar_markup(_now(), cfg) if args.waybar else lines["bar"]
+        print(json.dumps({"text": text, "tooltip": tip}), flush=True)
         if not args.follow:
             return
         time.sleep(60.5 - time.time() % 60)
@@ -93,6 +309,18 @@ def cmd_inventory(args) -> None:
         print("\n".join(i.text for i in found) or "You are empty handed.")
     else:
         inventory.choose()
+
+
+def cmd_agents(args) -> None:
+    if args.refresh:
+        agents.refresh(agents.usage_dir(), force=True)
+    if args.toggle:
+        agents.toggle(args.toggle)
+        return
+    if args.waybar:
+        agents.waybar(lambda: agents.colors(palette.load(transmute.saved_scheme())), only=args.only)
+    else:
+        print(agents.plain())
 
 
 def cmd_status(args) -> None:
@@ -401,6 +629,29 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--waybar", action="store_true", help="JSON for Waybar")
     s.add_argument("--short", action="store_true", help="only Hp and T")
     s.set_defaults(fn=cmd_status)
+
+    s = sub.add_parser("agents", help="show Claude and ChatGPT subscription usage")
+    s.add_argument("--waybar", action="store_true", help="JSON for Waybar, every 30 seconds")
+    s.add_argument("--refresh", action="store_true", help="fetch fresh limits now")
+    s.add_argument("--only", metavar="AGENT", help="one agent's line (claude, codex)")
+    s.add_argument("--toggle", metavar="AGENT", help="show that agent's next pool")
+    s.set_defaults(fn=cmd_agents)
+
+    s = sub.add_parser("pick", help="a menu for Bluetooth, the sound output or brightness")
+    s.add_argument("what", choices=("bluetooth", "sound", "brightness"))
+    s.set_defaults(fn=cmd_pick)
+
+    s = sub.add_parser("almanac", help="the biodynamic almanac for the month ahead")
+    s.add_argument("--days", type=int, default=31)
+    s.add_argument("--color", action="store_true", help="colour even when piped")
+    s.add_argument("--wait", action="store_true", help="wait for a key before leaving")
+    s.add_argument("--window", action="store_true", help="open it in a floating terminal")
+    s.add_argument("--app-id", default="athanor-almanac", help=argparse.SUPPRESS)
+    s.set_defaults(fn=cmd_almanac)
+
+    s = sub.add_parser("moon", help="the Moon's constellation for the biodynamic calendar")
+    s.add_argument("--waybar", action="store_true", help="JSON for Waybar, every five minutes")
+    s.set_defaults(fn=cmd_moon)
 
     s = sub.add_parser("hour", help="show the planetary hour, the moon and the card of the day")
     s.add_argument("--line", choices=("date", "ruler", "trump", "moon", "card", "bar", "sun"))

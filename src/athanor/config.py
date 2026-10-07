@@ -14,6 +14,8 @@ class TerminalFont(NamedTuple):
     # its tops clipped.
     bold: str | None = None
     italic: str | None = None
+    # A second face for what the first doesn't draw, as foot's "Family:pixelsize=N".
+    fallback: str | None = None
 
 
 TERMINAL_FONTS = {
@@ -22,6 +24,8 @@ TERMINAL_FONTS = {
     "cozette": TerminalFont("CozetteVector", 13),
     "compaq": TerminalFont("Px437 CompaqThin 8x16", 16),
     "vga": TerminalFont("PxPlus IBM VGA 8x16", 16),
+    # MEK Mono has no Nerd Font icons; JetBrains Mono fills them in.
+    "mek": TerminalFont("MEK Mono", 22, fallback="JetBrainsMono Nerd Font:pixelsize=20"),
 }
 
 

@@ -42,6 +42,9 @@ class Config:
     terminal_font: str = "tandy"
     tarot_on_login: bool = True
     stages: bool = False
+    icons: bool = True
+    app_icons: bool = True
+    folders: dict[str, str] = field(default_factory=dict)
 
 
 def load() -> Config:
@@ -70,4 +73,7 @@ def load() -> Config:
         terminal_font=font,
         tarot_on_login=bool(raw.get("tarot", {}).get("on_login", True)),
         stages=bool(raw.get("transmute", {}).get("stages", False)),
+        icons=bool(display.get("icons", True)),
+        app_icons=bool(display.get("app_icons", True)),
+        folders={str(k): str(v) for k, v in raw.get("folders", {}).items()},
     )

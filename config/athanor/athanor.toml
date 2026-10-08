@@ -23,6 +23,16 @@ description = "Dust hangs in the lamplight. A terminal hums on the desk."
 pixel_scale = 0
 # tandy, terminus, cozette, compaq, vga or mek. Applies at the next transmute.
 terminal_font = "tandy"
+# Draw folder, file and toolbar icons in the scheme's colours, in the font's line.
+icons = true
+# Give apps a ring with a sign or their initial too. Needs icons = true.
+app_icons = true
+
+[folders]
+# Give a folder one of the signs: sol, recipe, water, mercury, eye, fire,
+# ouroboros, caput or bindu. Home, Documents, Downloads, Music, Pictures and
+# the trash have theirs already.
+# "~/projects" = "fire"
 
 [transmute]
 # Change scheme with the time of day: umber at night, then vellum, orpiment

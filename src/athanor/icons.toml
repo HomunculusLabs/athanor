@@ -1,0 +1,1288 @@
+# Icons in the Athanor font's line. Folders are a seal (a circle in a square), files a
+# tablet with a folded corner. Each has a sign at the centre, in the font's own pixels
+# (16 px em, rendered by FreeType).
+# Any sign can mark a folder through [folders] in athanor.toml.
+#
+# The [[folder]] and [[file]] rules are tried in order. Each pattern is matched
+# against the icon names of the theme Athanor's icons inherit, so a file type the
+# theme draws gets a tablet too. Names without wildcards are always drawn.
+
+# the point at the centre of a yantra
+[signs.bindu]
+art = """
+##
+##
+"""
+
+# ☉ Sol, the centre and the self
+[signs.sol]
+art = """
+   #####
+  #     #
+ #       #
+#         #
+#    #    #
+#   ###   #
+#    #    #
+#         #
+ #       #
+  #     #
+   #####
+"""
+
+# ℞ Recipe, the receipt sign that heads a written formula
+[signs.recipe]
+art = """
+#####
+#    #
+#    #
+#    #
+#####
+#  #
+#   #  #
+#    ##
+#    ##
+#   #  #
+#  #   #
+"""
+
+# 🜄 Water, the element that descends
+[signs.water]
+art = """
+###########
+ #       #
+ #       #
+  #     #
+  #     #
+   #   #
+   #   #
+    # #
+    # #
+     #
+     #
+"""
+
+# ☿ Mercury. Hermes made the first lyre
+[signs.mercury]
+art = """
+#     #
+ #   #
+  ###
+ #   #
+#     #
+#     #
+#     #
+ #   #
+  ###
+   #
+ #####
+   #
+   #
+"""
+
+# 𓂀 the Eye of Horus
+[signs.eye]
+art = """
+  #############
+###
+
+    #####
+  ## ##  ##
+##  ####   #####
+  ##      ##
+    ######
+   #  #
+   #   #
+   #    #
+   #     #  ##
+   #      #   #
+           ###
+"""
+
+# 🜂 Fire, the furnace an athanor keeps lit
+[signs.fire]
+art = """
+     #
+     #
+    # #
+    # #
+   #   #
+   #   #
+  #     #
+  #     #
+ #       #
+ #       #
+###########
+"""
+
+# the ouroboros, for notes that link back into themselves
+[signs.ouroboros]
+art = """
+      ####
+    ### ###
+  ##########
+     ########
+  # ####   ###
+ #          ##
+##           ##
+##           ##
+##           ##
+##           ##
+##           ##
+ ##         ##
+ ##         ##
+  ###     ###
+   #########
+     #####
+"""
+
+# 🝎 Caput mortuum, the worthless residue left after the Work
+[signs.caput]
+art = """
+  #######
+ #       #
+#         #
+# ##   ## #
+# ##   ## #
+#         #
+#    #    #
+#   ###   #
+ #       #
+  #######
+"""
+
+# ☰ Heaven, three unbroken lines
+[signs.heaven]
+art = """
+###########
+###########
+
+###########
+###########
+
+###########
+###########
+"""
+
+# ☷ Earth, lines broken into cells
+[signs.earth]
+art = """
+####   ####
+####   ####
+
+####   ####
+####   ####
+
+####   ####
+####   ####
+"""
+
+# ☽ the Moon, light that moves and changes
+[signs.moon]
+art = """
+###
+#  ##
+ #   #
+  #   #
+  #    #
+  #    #
+  #    #
+  #   #
+ #   #
+#  ##
+###
+"""
+
+# 🜔 Salt, coagula: what is fixed and packed down
+[signs.salt]
+art = """
+   #####
+  #     #
+ #       #
+#         #
+#         #
+###########
+#         #
+#         #
+ #       #
+  #     #
+   #####
+"""
+
+# 🜍 Sulphur, the active principle
+[signs.sulphur]
+art = """
+   #
+   #
+  # #
+  # #
+ #   #
+ #   #
+#######
+   #
+ #####
+   #
+   #
+   #
+"""
+
+# ♂ Mars, iron and force
+[signs.mars]
+art = """
+      ####
+         #
+        ##
+       # #
+  ### #  #
+ #   #
+#     #
+#     #
+#     #
+ #   #
+  ###
+"""
+
+# ⊕ the globe
+[signs.globe]
+art = """
+   #####
+  #  #  #
+ #   #   #
+#    #    #
+#    #    #
+###########
+#    #    #
+#    #    #
+ #   #   #
+  #  #  #
+   #####
+"""
+
+# A, the font's own capital
+[signs.letter]
+art = """
+     #
+     #
+    # #
+    # #
+   #   #
+   #   #
+  #     #
+  #######
+ #       #
+###     ###
+ #       #
+"""
+
+# ♄ Saturn, lead, the heaviest metal
+[signs.saturn]
+art = """
+ #
+ #
+####
+ #
+ # ###
+ ##   #
+ #     #
+       #
+      #
+     #
+     # ##
+      #
+"""
+
+# ★ a star, for what you starred
+[signs.star-filled]
+art = """
+     #
+     #
+    ###
+###########
+ #########
+  #######
+   #####
+  #######
+  ### ###
+ ###   ###
+ ##     ##
+"""
+
+# ☆ an empty star
+[signs.star]
+art = """
+     #
+     #
+    # #
+####   ####
+ #       #
+  #     #
+   #   #
+  #     #
+  #  #  #
+ # ## ## #
+ ##     ##
+"""
+
+# 🜃 Earth, for the drives
+[signs.ground]
+art = """
+###########
+ #       #
+ #       #
+  #     #
+  #     #
+###########
+   #   #
+    # #
+    # #
+     #
+     #
+"""
+
+# 🜁 Air, for removable drives
+[signs.air]
+art = """
+     #
+     #
+    # #
+    # #
+   #   #
+###########
+  #     #
+  #     #
+ #       #
+ #       #
+###########
+"""
+
+# 👁 the eye, for search
+[signs.watch]
+art = """
+     #####
+   ##  #  ##
+ ##   # #   ##
+#    # # #    #
+ ##   # #   ##
+   ##  #  ##
+     #####
+"""
+
+# × close
+[signs.cross]
+art = """
+#     #
+ #   #
+  # #
+   #
+  # #
+ #   #
+#     #
+"""
+
+# + add
+[signs.plus]
+art = """
+   #
+   #
+   #
+#######
+   #
+   #
+   #
+"""
+
+# − remove
+[signs.minus]
+art = """
+#######
+"""
+
+# ⊗ stop
+[signs.stop]
+art = """
+   #####
+  #     #
+ ##     ##
+#  #   #  #
+#   # #   #
+#    #    #
+#   # #   #
+#  #   #  #
+ ##     ##
+  #     #
+   #####
+"""
+
+# < back
+[signs.back]
+art = """
+     ##
+   ##
+ ##
+#
+ ##
+   ##
+     ##
+"""
+
+# > forward
+[signs.forward]
+art = """
+##
+  ##
+    ##
+      #
+    ##
+  ##
+##
+"""
+
+# three points, for more (drawn to match the font's 2 × 2 point)
+[signs.dots]
+art = """
+##
+##
+
+
+##
+##
+
+
+##
+##
+"""
+
+# a list, points and lines
+[signs.list]
+art = """
+##  #######
+##
+
+
+##  #######
+##
+
+
+##  #######
+##
+"""
+
+# a chevron, for drop-downs
+[signs.chevron]
+art = """
+#     #
+ #   #
+  # #
+   #
+"""
+
+# a tick
+[signs.check]
+art = """
+          #
+         #
+        #
+#      #
+ #    #
+  #  #
+   ##
+"""
+
+# the seal, small, for folders in lists and the sidebar
+[signs.seal-small]
+art = """
+###########
+#         #
+#   ###   #
+#  #   #  #
+# #     # #
+# #     # #
+# #     # #
+#  #   #  #
+#   ###   #
+#         #
+###########
+"""
+
+# ♌ Leo, the lion
+[signs.leo]
+art = """
+    ###
+   #   #
+  #     #
+  #     #
+ ##     #
+#  #    #
+#  #    #
+ ##     #
+        #
+         #
+        # #
+"""
+
+# ? a question
+[signs.question]
+art = """
+ ###
+#   #
+#   #
+    #
+   #
+  #
+  #
+  #
+
+ ##
+ ##
+"""
+
+# a warning: the font's triangle with a stroke and a point inside
+[signs.warning]
+art = """
+      #
+      #
+     # #
+     # #
+    # # #
+    # # #
+   #  #  #
+   #  #  #
+  #   #   #
+  #       #
+ #    #    #
+ #         #
+#############
+"""
+
+# i, for information
+[signs.info]
+art = """
+ ##
+ ##
+
+###
+ ##
+ ##
+ ##
+ ##
+ ##
+####
+"""
+
+# The capitals, in the font's own pixels. An app without a sign of its own
+# gets the first letter of its name.
+[letters]
+A = """
+     #
+     #
+    # #
+    # #
+   #   #
+   #   #
+  #     #
+  #######
+ #       #
+###     ###
+ #       #
+"""
+B = """
+######
+ #    #
+ #     #
+ #     #
+ #    #
+ ######
+ #     #
+ #      #
+ #      #
+ #     #
+#######
+"""
+C = """
+   #### #
+  #    ##
+ #      #
+#
+#
+#
+#
+#
+ #      #
+  #    #
+   ####
+"""
+D = """
+#######
+ #     #
+ #      #
+ #       #
+ #       #
+ #       #
+ #       #
+ #       #
+ #      #
+ #     #
+#######
+"""
+E = """
+#######
+ #    #
+ #
+ #
+ #  #
+ ####
+ #  #
+ #
+ #
+ #    #
+#######
+"""
+F = """
+#######
+ #    #
+ #
+ #
+ #  #
+ ####
+ #  #
+ #
+ #
+###
+ #
+"""
+G = """
+   #### #
+  #    ##
+ #      #
+#
+#
+#    #####
+#       #
+#       #
+ #      #
+  #    ##
+   #### #
+"""
+H = """
+ #     #
+###   ###
+ #     #
+ #     #
+ #     #
+ #######
+ #     #
+ #     #
+ #     #
+###   ###
+ #     #
+"""
+I = """
+ #
+###
+ #
+ #
+ #
+ #
+ #
+ #
+ #
+###
+ #
+"""
+J = """
+   #
+  ###
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+   #
+#  #
+ ##
+"""
+K = """
+ #      #
+###    #
+ #    #
+ #   #
+ #  #
+ # #
+ ## #
+ #   #
+ #    #
+###    #
+ #      ##
+"""
+L = """
+ #
+###
+ #
+ #
+ #
+ #
+ #
+ #
+ #
+ #     #
+########
+"""
+M = """
+##         ##
+ ##       ##
+ # #     # #
+ # #     # #
+ #  #   #  #
+ #  #   #  #
+ #   # #   #
+ #   # #   #
+ #    #    #
+###   #   ###
+ #    #    #
+"""
+N = """
+##       #
+ #      ###
+ ##      #
+ # #     #
+ #  #    #
+ #   #   #
+ #    #  #
+ #     # #
+ #      ##
+###      #
+ #       #
+"""
+O = """
+   #####
+  #     #
+ #       #
+#         #
+#         #
+#         #
+#         #
+#         #
+ #       #
+  #     #
+   #####
+"""
+P = """
+######
+ #    #
+ #     #
+ #     #
+ #    #
+ #####
+ #
+ #
+ #
+###
+ #
+"""
+Q = """
+   #####
+  #     #
+ #       #
+#         #
+#         #
+#         #
+#         #
+#         #
+ #       #
+  #     #
+   #####
+     ##
+       #####
+"""
+R = """
+######
+ #    #
+ #     #
+ #     #
+ #    #
+ #####
+ #  #
+ #   #
+ #    #
+###    #
+ #      ##
+"""
+S = """
+  #### #
+ #    ##
+#      #
+#
+ ##
+   ###
+      #
+       #
+#      #
+##    #
+# ####
+"""
+T = """
+#########
+#   #   #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+   ###
+    #
+"""
+U = """
+ #     #
+###   ###
+ #     #
+ #     #
+ #     #
+ #     #
+ #     #
+ #     #
+ #     #
+  #   #
+   ###
+"""
+V = """
+#         #
+#         #
+ #       #
+ #       #
+  #     #
+  #     #
+   #   #
+   #   #
+    # #
+    # #
+     #
+"""
+W = """
+#    #   #    #
+#    #   #    #
+ #    # #    #
+ #    # #    #
+  #    #    #
+  #    #    #
+  #   # #   #
+   #  # #  #
+   # #   # #
+    ##   ##
+    #     #
+"""
+X = """
+#         #
+ #       #
+  #     #
+   #   #
+    # #
+     #
+    # #
+   #   #
+  #     #
+ #       #
+##       ##
+"""
+Y = """
+#         #
+ #       #
+  #     #
+   #   #
+    # #
+     #
+     #
+     #
+     #
+    ###
+     #
+"""
+Z = """
+##########
+#       #
+       #
+      #
+     #
+    #
+   #
+  #
+ #       #
+#        #
+##########
+"""
+
+[[folder]]
+sign = "sol"
+match = [
+  "user-home", "folder-home",
+]
+
+[[folder]]
+sign = "recipe"
+match = [
+  "folder-documents",
+]
+
+[[folder]]
+sign = "water"
+match = [
+  "folder-download",
+]
+
+[[folder]]
+sign = "mercury"
+match = [
+  "folder-music",
+]
+
+[[folder]]
+sign = "eye"
+match = [
+  "folder-pictures",
+]
+
+[[folder]]
+sign = "caput"
+match = [
+  "user-trash", "user-trash-full",
+]
+
+[[folder]]
+sign = "bindu"
+match = [
+  "folder", "inode-directory", "folder-open", "folder-drag-accept", "folder-videos",
+  "folder-templates", "folder-publicshare", "folder-remote", "user-desktop", "folder-*",
+]
+
+[[file]]
+sign = "heaven"
+match = [
+  "text", "text-plain", "text-x-plain", "text-x-generic", "text-markdown", "text-x-readme",
+  "text-x-log", "text-x-authors", "text-x-credits", "text-x-copying", "text-x-install",
+  "text-x-preview", "message-rfc822",
+]
+
+[[file]]
+sign = "recipe"
+match = [
+  "*epub*", "*ebook*", "image-vnd.djvu", "*pdf*",
+]
+
+[[file]]
+sign = "earth"
+match = [
+  "*spreadsheet*", "*sheet*", "*calc*", "*excel*", "text-csv", "*database*", "*access",
+  "application-x-sqlite3", "libreoffice-formula*", "*opendocument.formula*", "*oasis-formula*",
+]
+
+[[file]]
+sign = "globe"
+match = [
+  "*html*", "*opendocument.web*", "*oasis-web*", "libreoffice-web", "application-x-rss+xml",
+  "application-x-mswinurl",
+]
+
+[[file]]
+sign = "letter"
+match = [
+  "font*", "application-font", "application-x-font*",
+]
+
+[[file]]
+sign = "mercury"
+match = [
+  "audio-*", "application-x-audacity*", "application-x-lmms*", "application-x-musescore*",
+  "text-x-lilypond", "*Melody",
+]
+
+[[file]]
+sign = "moon"
+match = [
+  "video-*", "application-x-subrip", "application-x-sami", "text-x-microdvd",
+]
+
+[[file]]
+sign = "saturn"
+match = [
+  "*cd-image", "*disk-image", "*diskimage", "application-x-qemu-disk",
+  "application-x-virtualbox-*", "application-vnd.squashfs", "*-rom", "rom",
+]
+
+[[file]]
+sign = "salt"
+match = [
+  "package*", "gnome-package", "*zip*", "*rar", "*7z*", "*gzip", "*compress", "*archive*",
+  "*tar", "application-vnd.debian.binary-package", "application-vnd.flatpak",
+  "application-vnd.snap", "application-apk", "application-x-msi", "application-x-xpinstall",
+  "*extension*", "application-x-addon", "application-x-bittorrent",
+]
+
+[[file]]
+sign = "eye"
+match = [
+  "image-*", "application-photoshop", "application-illustrator", "application-x-krita",
+  "application-x-blender", "*eps", "application-postscript", "*graphics*", "*drawing*",
+  "application-x-xop*", "model*",
+]
+
+[[file]]
+sign = "recipe"
+match = [
+  "*document*", "document", "*msword", "*ms-word", "*opendocument*", "libreoffice-*",
+  "*presentation*", "*powerpoint", "*slideshow", "application-rtf",
+  "application-vnd.ms-publisher", "*hwp", "text-x-tex", "text-vnd.typst", "office-*",
+  "text-enriched", "text-richtext",
+]
+
+[[file]]
+sign = "mars"
+match = [
+  "application-x-executable", "application-x-ms-dos-executable", "*portable-executable",
+  "application-x-msdownload", "application-x-sharedlib", "application-x-desktop",
+  "application-x-firmware", "org.gnome.Firmware",
+]
+
+[[file]]
+sign = "sulphur"
+match = [
+  "text-x-*", "text-*", "application-x-shellscript", "application-*javascript",
+  "application-*typescript", "application-json", "application-*+json", "application-toml",
+  "application-*yaml", "application-xml", "application-sql", "application-*java",
+  "application-x-perl", "application-x-php", "application-x-ruby",
+  "application-x-python-bytecode", "application-vnd-dart", "gnome-mime-text-x-makefile",
+]
+
+[[file]]
+sign = "bindu"
+match = [
+  "unknown", "application-octet-stream", "*",
+]
+
+# Small one-colour icons for sidebars and toolbars, drawn 16 px like the font.
+# GTK paints them in the text colour. Only these names are drawn.
+
+[[symbolic]]
+sign = "sol"
+match = ["user-home-symbolic", "go-home-symbolic"]
+
+[[symbolic]]
+sign = "saturn"
+match = ["document-open-recent-symbolic"]
+
+[[symbolic]]
+sign = "star-filled"
+match = ["starred-symbolic"]
+
+[[symbolic]]
+sign = "star"
+match = ["non-starred-symbolic"]
+
+[[symbolic]]
+sign = "globe"
+match = [
+  "network-workgroup-symbolic", "network-computer-symbolic", "network-server-symbolic",
+  "folder-remote-symbolic", "folder-publicshare-symbolic",
+]
+
+[[symbolic]]
+sign = "caput"
+match = ["user-trash-symbolic", "user-trash-full-symbolic"]
+
+[[symbolic]]
+sign = "water"
+match = ["folder-download-symbolic"]
+
+[[symbolic]]
+sign = "recipe"
+match = ["folder-documents-symbolic"]
+
+[[symbolic]]
+sign = "mercury"
+match = ["folder-music-symbolic"]
+
+[[symbolic]]
+sign = "eye"
+match = ["folder-pictures-symbolic"]
+
+[[symbolic]]
+sign = "moon"
+match = ["folder-videos-symbolic"]
+
+[[symbolic]]
+sign = "seal-small"
+match = [
+  "folder-symbolic", "inode-directory-symbolic", "user-desktop-symbolic",
+  "folder-templates-symbolic",
+]
+
+[[symbolic]]
+sign = "ground"
+match = ["drive-harddisk-symbolic", "drive-harddisk-system-symbolic", "drive-multidisk-symbolic"]
+
+[[symbolic]]
+sign = "air"
+match = ["media-removable-symbolic", "drive-removable-media-symbolic", "media-flash-symbolic"]
+
+[[symbolic]]
+sign = "watch"
+match = ["edit-find-symbolic", "system-search-symbolic", "nautilus-folder-search-symbolic"]
+
+[[symbolic]]
+sign = "heaven"
+match = ["open-menu-symbolic"]
+
+[[symbolic]]
+sign = "earth"
+match = ["view-grid-symbolic", "view-app-grid-symbolic"]
+
+[[symbolic]]
+sign = "list"
+match = ["view-list-symbolic"]
+
+[[symbolic]]
+sign = "dots"
+match = ["view-more-symbolic"]
+
+[[symbolic]]
+sign = "back"
+match = ["go-previous-symbolic", "pan-start-symbolic"]
+
+[[symbolic]]
+sign = "forward"
+match = ["go-next-symbolic", "pan-end-symbolic"]
+
+[[symbolic]]
+sign = "chevron"
+match = ["pan-down-symbolic"]
+
+[[symbolic]]
+sign = "cross"
+match = ["window-close-symbolic", "edit-clear-symbolic", "edit-clear-rtl-symbolic"]
+
+[[symbolic]]
+sign = "plus"
+match = ["list-add-symbolic", "bookmark-new-symbolic"]
+
+[[symbolic]]
+sign = "minus"
+match = ["list-remove-symbolic"]
+
+[[symbolic]]
+sign = "stop"
+match = ["process-stop-symbolic", "cancel-operation-symbolic"]
+
+[[symbolic]]
+sign = "check"
+match = ["object-select-symbolic"]
+
+[[symbolic]]
+sign = "warning"
+match = ["dialog-warning-symbolic"]
+
+[[symbolic]]
+sign = "stop"
+match = ["dialog-error-symbolic"]
+
+[[symbolic]]
+sign = "info"
+match = ["dialog-information-symbolic"]
+
+[[symbolic]]
+sign = "question"
+match = ["dialog-question-symbolic"]
+
+# Apps are a ring. These rules match the Icon= of each app the launcher would list;
+# any other app gets the first letter of its name. Apps whose icon is a file path
+# keep their own.
+
+[[app]]
+sign = "forward"
+match = [
+  "Alacritty", "foot", "foot-server", "com.mitchellh.ghostty", "kitty", "org.codeberg.dnkl.foot",
+  "utilities-terminal", "org.gnome.Console",
+]
+
+[[app]]
+sign = "fire"
+match = ["firefox"]
+
+[[app]]
+sign = "leo"
+match = ["brave-desktop", "brave-browser", "com.brave.Browser"]
+
+[[app]]
+sign = "sulphur"
+match = ["chatgpt"]
+
+[[app]]
+sign = "ouroboros"
+match = ["obsidian", "md.obsidian.Obsidian"]
+
+[[app]]
+sign = "seal-small"
+match = ["org.gnome.Nautilus", "system-file-manager"]
+
+[[app]]
+sign = "mercury"
+match = ["hermes"]
+
+[[app]]
+sign = "eye"
+match = ["imv", "org.gnome.Loupe", "eog", "google-photos"]
+
+[[app]]
+sign = "moon"
+match = ["mpv", "vlc", "youtube", "org.gnome.Totem"]
+
+[[app]]
+sign = "recipe"
+match = [
+  "org.gnome.Evince", "org.gnome.Papers", "libreoffice-writer", "typora", "omawrite",
+  "com.github.xournalpp.xournalpp",
+]
+
+[[app]]
+sign = "earth"
+match = ["libreoffice-calc", "libreoffice-base", "omacalc"]
+
+[[app]]
+sign = "ground"
+match = ["org.gnome.DiskUtility", "disk-usage", "baobab"]
+
+[[app]]
+sign = "saturn"
+match = ["timeshift"]
+
+[[app]]
+sign = "globe"
+match = ["chromium", "google-maps"]
+
+[[app]]
+sign = "salt"
+match = ["docker"]
+
+[[app]]
+sign = "water"
+match = ["localsend"]
+
+# Dialogs draw these large, in a ring like the apps.
+
+[[status]]
+sign = "warning"
+match = ["dialog-warning"]
+
+[[status]]
+sign = "stop"
+match = ["dialog-error"]
+
+[[status]]
+sign = "info"
+match = ["dialog-information"]
+
+[[status]]
+sign = "question"
+match = ["dialog-question"]

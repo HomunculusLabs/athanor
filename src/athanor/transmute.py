@@ -10,7 +10,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, cursor, hypr, palette, sigil, sky, stages, tarot, wall
+from . import config, cursor, hypr, icons, palette, sigil, sky, stages, tarot, wall
 from .paths import cache_dir, current_dir, runtime_dir, state_dir, write_atomic
 from .render import render_tree
 
@@ -195,6 +195,7 @@ def tokens(
     layout = lock_layout(size, walls.lock_panel_x if walls else 0, walls.scale if walls else 2)
     return {
         **scheme.colors(),
+        **palette.bar_hues(scheme),
         "scheme": scheme.name,
         "label": scheme.label,
         "screen_w": str(w),
@@ -254,6 +255,11 @@ def apply(
     render_tree(current_dir(), toks)
     write_atomic(state_dir() / "scheme", scheme.name + "\n")
     cursor.render(scheme)
+    if cfg.icons:
+        icons.render(scheme, inherits=icons.previous_theme(), with_apps=cfg.app_icons)
+        icons.use()
+        for path in icons.mark(cfg.folders):
+            log(f"no sign for {path} in [folders]: no such folder or sign")
 
     if reload:
         hypr.request("reload")

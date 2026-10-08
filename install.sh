@@ -15,6 +15,7 @@ config=${XDG_CONFIG_HOME:-$HOME/.config}
 home=$config/athanor
 fonts=${XDG_DATA_HOME:-$HOME/.local/share}/fonts/athanor
 cursors=${XDG_DATA_HOME:-$HOME/.local/share}/icons/athanor
+icons=${XDG_DATA_HOME:-$HOME/.local/share}/icons/athanor-icons
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/athanor
 state=${XDG_STATE_HOME:-$HOME/.local/state}/athanor
 units=$config/systemd/user
@@ -414,6 +415,20 @@ uninstall() {
   if [[ -d $cursors ]]; then
     say "removing the cursors in $cursors"
     run rm -rf "$cursors"
+  fi
+  if [[ -d $icons ]]; then
+    say "removing the icons in $icons"
+    if [[ -f $state/folder-marks ]] && command -v gio >/dev/null; then
+      local marked
+      while IFS= read -r marked; do
+        [[ -d $marked ]] && run gio set -t unset "$marked" metadata::custom-icon-name
+      done <"$state/folder-marks"
+    fi
+    if [[ $(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null) == "'athanor-icons'" ]]; then
+      run gsettings set org.gnome.desktop.interface icon-theme \
+        "$(cat "$state/icon-theme" 2>/dev/null || echo Adwaita)"
+    fi
+    run rm -rf "$icons"
   fi
   if ((purge)); then
     say "purging settings, fonts, cache and state"

@@ -212,7 +212,6 @@ desktop_links=(
   "config/hypr/athanor.conf:$home/hypr/athanor.conf"
   "config/hypr/binds.conf:$home/hypr/binds.conf"
   "config/hypr/hypridle.conf:$home/hypr/hypridle.conf"
-  "config/waybar/config.jsonc:$home/waybar/config.jsonc"
   "config/systemd/user/athanor-tomb.path:$units/athanor-tomb.path"
   "config/systemd/user/athanor-tomb.service:$units/athanor-tomb.service"
 )

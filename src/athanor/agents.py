@@ -4,6 +4,8 @@ Reads the records Omarchy's `omarchy-agent-usage-update` writes (one JSON file
 per agent in ~/.local/state/omarchy/agents/usage) and shows how much of each
 plan's allowance is spent. When the records go stale it asks the updater to
 refresh the limits, so the bar keeps working without Omarchy's own panel.
+Omarchy has no collector for the z.ai Coding Plan, so that record is written
+here, in the same shape, from z.ai's quota endpoint.
 """
 
 import contextlib
@@ -14,7 +16,9 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
+import urllib.request
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,8 +27,14 @@ from . import palette
 from .paths import state_dir, write_atomic
 
 # Which records to show, in order, and the name each gets on the bar.
-AGENTS = (("claude", "Claude"), ("codex", "ChatGPT"))
+AGENTS = (("claude", "Claude"), ("codex", "ChatGPT"), ("zai", "Z.ai"))
+OMARCHY = ("claude", "codex")  # the ones Omarchy's updater collects
+# Wells meant to be spent: the z.ai plan has only a 5-hour window and the aim
+# is to use all of it, so its bar fills as it burns instead of draining.
+BURN = frozenset({"zai"})
 STALE = 300  # seconds before the limits are refreshed
+ZAI_STALE = 60  # one cheap request, so the burn can be watched more closely
+ZAI_QUOTA = "https://api.z.ai/api/monitor/usage/quota/limit"
 WARN = 0.5  # spent before a model's own weekly limit joins the bar
 
 
@@ -139,14 +149,16 @@ def shown(plan: Plan) -> tuple[Limit, ...]:
     # The bar carries the session and the main weekly window; the rest
     # (model-specific weeklies) wait in the tooltip unless they run hot.
     main = [lim for lim in plan.limits if lim.short in ("5h", "wk")]
+    if plan.id in BURN:
+        return tuple(main) or plan.limits[:1]
     hot = [lim for lim in plan.limits if lim not in main and lim.percent >= WARN]
     return tuple(main + hot) or plan.limits[:1]
 
 
 # Each subscription is a well of its own kind of energy: the bar shows what is
-# left, full when the window resets and draining as it is spent. Claude runs on
-# quicksilver under Mercury's sign, ChatGPT on green vitriol. Sigils are drawn
-# in Athanor.
+# left, full when the window resets and draining as it is spent. The three are
+# the tria prima: Claude is Mercury, ChatGPT Sulphur, z.ai Salt, which burns
+# rather than drains. Sigils are drawn in Athanor.
 @dataclass(frozen=True)
 class Energy:
     name: str
@@ -155,8 +167,9 @@ class Energy:
 
 
 ENERGIES = {
-    "claude": Energy("Quicksilver", "\u263f", (12, 4)),  # Mercury, silver-blue
-    "codex": Energy("Vitriol", "\U0001f716", (10, 2, 14, 6)),  # green vitriol
+    "claude": Energy("Mercury", "\u263f", (1, 9)),  # red
+    "codex": Energy("Sulphur", "\U0001f70d", (4, 12)),  # blue
+    "zai": Energy("Salt", "\U0001f714", (2, 10)),  # green
 }
 OTHER = Energy("Aether", "\u2609", (15, 7))
 METER = 10
@@ -182,22 +195,7 @@ def meter(left: float) -> tuple[str, str]:
 
 
 def hue(scheme, slots: tuple[int, ...]) -> str:
-    """The first of the scheme's slots that reads on its bar, or the first lifted until it does."""
-    bar = scheme.roles["bar"]
-    for index in slots:
-        if palette.contrast(scheme.ansi[index], bar) >= 4.5:
-            return scheme.ansi[index]
-    # Lift toward white on a dark bar, sink toward black on a light one, so it keeps its hue.
-    light_bar = palette.luminance(bar) > 0.5
-    base, toward = palette.rgb(scheme.ansi[slots[0]]), (0, 0, 0) if light_bar else (255, 255, 255)
-    for step in range(1, 11):
-        t = step / 10
-        mixed = "#" + "".join(
-            f"{round(a + (b - a) * t):02x}" for a, b in zip(base, toward, strict=True)
-        )
-        if palette.contrast(mixed, bar) >= 4.5:
-            return mixed
-    return scheme.roles["barfg"]
+    return palette.readable(scheme, slots)
 
 
 def colors(scheme) -> dict[str, str]:
@@ -240,23 +238,31 @@ def markup_one(
     def tint(left: float) -> str:
         return drained if left < DRAINED else low if left < LOW else own
 
-    # The bar keeps one shape, sigil, pool, meter, number, so it never changes
-    # width. The sigil carries the lowest of all the pools, so a pool out of
-    # sight that runs low still shows; the refill times live in the tooltip.
+    # The bar keeps one shape, sigil and meter, so it never changes width.
+    # Which pool is on show, the numbers and the refill times live in the
+    # tooltip. The sigil carries the lowest of all the pools, so a pool out of
+    # sight that runs low still shows.
     lowest = min((1 - lim.percent for lim in pools(plan)), default=1.0)
-    bits = [_sigil(energy(plan.id).sigil, tint(lowest))]
     lim = chosen(plan, choice)
+
+    if plan.id in BURN:
+        # Spending is the point here, so nothing warns: the meter fills with
+        # what has been burnt.
+        bits = [_sigil(energy(plan.id).sigil, own)]
+        if lim is None:
+            bits.append(_paint("unread", dim))
+        else:
+            burnt = min(1.0, max(0.0, lim.percent))
+            full, empty = meter(burnt)
+            bits.append(_paint(full, own) + _paint(empty, dim))
+        return "  ".join(bits), []
+    bits = [_sigil(energy(plan.id).sigil, tint(lowest))]
     if lim is None:
         bits.append(_paint("unread", dim))
     else:
         left = max(0.0, 1 - lim.percent)
         full, spent = meter(left)
-        bits.append(
-            _paint(f"{lim.short[:2]} ", dim)
-            + _paint(full, tint(left))
-            + _paint(spent, dim)
-            + _paint(f" {round(left * 100)}", tint(left) if left < LOW else None)
-        )
+        bits.append(_paint(full, tint(left)) + _paint(spent, dim))
     classes = ["hurt"] if lowest < DRAINED else ["warn"] if lowest < LOW else []
     return "  ".join(bits), classes
 
@@ -272,9 +278,11 @@ def markup(plans: list[Plan], colors: dict[str, str], now: datetime) -> tuple[st
     return "   ".join(parts), order
 
 
-def tooltip(plans: list[Plan], now: datetime) -> str:
+def tooltip(plans: list[Plan], now: datetime, picks: dict[str, str] | None = None) -> str:
+    """Every pool with its numbers; ▸ marks the one on the bar where there is a choice."""
     lines = []
     for plan in plans:
+        on_show = chosen(plan, (picks or {}).get(plan.id)) if len(pools(plan)) > 1 else None
         kind = energy(plan.id)
         head = f"{kind.name}: {plan.name} {plan.tier}".strip()
         if plan.problem:
@@ -282,9 +290,18 @@ def tooltip(plans: list[Plan], now: datetime) -> str:
         lines.append(head)
         for lim in plan.limits:
             reset = until(lim.resets, now)
+            mark = "\u25b8 " if lim == on_show else "  "
+            if plan.id in BURN:
+                burnt = max(0, round(lim.percent * 100))
+                lines.append(
+                    f"{mark}{lim.label:<18} {burnt:>3}% burnt"
+                    + (f", new window in {reset}" if reset else "")
+                )
+                continue
             left = max(0, round((1 - lim.percent) * 100))
             lines.append(
-                f"  {lim.label:<18} {left:>3}% left" + (f", full again in {reset}" if reset else "")
+                f"{mark}{lim.label:<18} {left:>3}% left"
+                + (f", full again in {reset}" if reset else "")
             )
         if plan.updated:
             age = int((now - plan.updated).total_seconds() // 60)
@@ -316,14 +333,114 @@ def toggle(agent: str, root: Path | None = None, path: Path | None = None) -> st
     return nxt
 
 
+def zai_key() -> str:
+    """The z.ai key: $ZAI_API_KEY, else the one opencode's z.ai provider uses."""
+    key = os.environ.get("ZAI_API_KEY", "")
+    if key:
+        return key
+    config = _read(Path.home() / ".config/opencode/opencode.json") or {}
+    provider = (config.get("provider") or {}).get("zai-coding-plan") or {}
+    return str((provider.get("options") or {}).get("apiKey") or "")
+
+
+def _zai_ms(value) -> str | None:
+    if not isinstance(value, (int, float)):
+        return None
+    return datetime.fromtimestamp(value / 1000, UTC).isoformat()
+
+
+def zai_record(data: dict, now: datetime) -> dict:
+    """An Omarchy-shaped usage record from z.ai's quota/limit answer."""
+    limits = []
+    for entry in data.get("limits") or ():
+        kind = entry.get("type")
+        if kind == "TOKENS_LIMIT":
+            label = "Session (5-hour)"
+        elif kind == "TIME_LIMIT":
+            label = "MCP calls (month)"
+        else:
+            continue
+        if not isinstance(entry.get("percentage"), (int, float)):
+            continue
+        limits.append(
+            {
+                "label": label,
+                "percent": entry["percentage"] / 100,
+                "resetsAt": _zai_ms(entry.get("nextResetTime")),
+            }
+        )
+    limits.sort(key=lambda lim: lim["label"] != "Session (5-hour)")
+    return {
+        "schemaVersion": 1,
+        "id": "zai",
+        "name": "Z.ai",
+        "updatedAt": now.isoformat(),
+        "ready": True,
+        "tierLabel": str(data.get("level") or ""),
+        "usageStatusText": "" if limits else "z.ai limits unavailable",
+        "limits": limits,
+    }
+
+
+def collect_zai(root: Path) -> None:
+    """Read the z.ai Coding Plan quota and write it as zai.json."""
+    key = zai_key()
+    now = datetime.now(UTC)
+    if not key:
+        record = {**zai_record({}, now), "ready": False, "usageStatusText": "no z.ai key"}
+        write_atomic(root / "zai.json", json.dumps(record))
+        return
+    request = urllib.request.Request(
+        ZAI_QUOTA, headers={"Authorization": key, "Accept-Language": "en-US,en"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as answer:
+            body = json.loads(answer.read())
+    except (OSError, ValueError):
+        return  # keep the last record; the next round tries again
+    if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
+        return
+    write_atomic(root / "zai.json", json.dumps(zai_record(body["data"], now)))
+
+
+def refresh_zai(root: Path, force: bool = False) -> None:
+    """Fetch the z.ai quota in the background, at most one fetch at a time."""
+    if not force:
+        try:
+            if time.time() - (root / "zai.json").stat().st_mtime < ZAI_STALE:
+                return
+        except OSError:
+            pass
+    root.mkdir(parents=True, exist_ok=True)
+    lock = open(root / ".athanor-zai.lock", "w")  # noqa: SIM115 - the thread closes it
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        lock.close()
+        return
+
+    def run() -> None:
+        with lock:
+            collect_zai(root)
+
+    # Not a daemon: a one-shot `agents --refresh` waits for the fetch to land.
+    threading.Thread(target=run, name="zai-quota").start()
+
+
+_running: list[subprocess.Popen] = []
+
+
 def refresh(root: Path, force: bool = False) -> None:
-    """Ask Omarchy's collectors for fresh limits, at most one run at a time."""
+    """Ask the collectors for fresh limits, at most one run of each at a time."""
+    refresh_zai(root, force)
+    # Reap finished runs so they don't linger as zombies under the bar.
+    _running[:] = [p for p in _running if p.poll() is None]
     updater = shutil.which("omarchy-agent-usage-update")
     if not updater:
         return
     if not force:
         ages = []
-        for agent, _ in AGENTS:
+        for agent in OMARCHY:
             try:
                 ages.append(time.time() - (root / f"{agent}.json").stat().st_mtime)
             except OSError:
@@ -337,14 +454,15 @@ def refresh(root: Path, force: bool = False) -> None:
         except OSError:
             return
         # The child inherits the lock and holds it until it finishes.
-        subprocess.Popen(
-            [updater, "--limits-only", *(agent for agent, _ in AGENTS)],
+        child = subprocess.Popen(
+            [updater, "--limits-only", *OMARCHY],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             pass_fds=(lock.fileno(),),
             start_new_session=True,
         )
+        _running.append(child)
 
 
 def waybar(colors_for, only: str | None = None, interval: float = 30.0) -> None:
@@ -370,7 +488,7 @@ def waybar(colors_for, only: str | None = None, interval: float = 30.0) -> None:
                 text, classes = ("", [])
                 if plans:
                     text, classes = markup_one(plans[0], choices().get(only), colors_for(), now)
-            out = {"text": text, "class": classes, "tooltip": tooltip(plans, now)}
+            out = {"text": text, "class": classes, "tooltip": tooltip(plans, now, choices())}
             sys.stdout.write(json.dumps(out) + "\n")
             sys.stdout.flush()
         # A click writes the pick file; looking for it twice a second costs nothing.

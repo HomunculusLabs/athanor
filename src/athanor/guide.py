@@ -5,10 +5,8 @@ TITLE = "The Athanor Guidebook"
 STATUS = (
     ("Dlvl:3", "Dungeon level: which of the seven workspaces you're on."),
     ("$:212G", "Gold: free disk space."),
-    ("Hp:87(96)", "Hit points: battery charge. The max is the battery's health."),
-    ("", "A + means it is charging. Hp:AC means there is no battery."),
+    ("Hp:17(31)", "Hit points: free memory in GiB. The max is all of it."),
     ("Str:14%", "Strength spent: how hard the CPU is working."),
-    ("Mem:6.1G", "Memory in use."),
     ("T:48213", "Turns: minutes since boot."),
     ("Hour of Venus", "The planetary hour for your sunrise and sunset."),
     ("Moon: waning", "The moon's phase."),

@@ -53,7 +53,7 @@ def _packages() -> str:
 
 def sheet(cfg, color: bool) -> str:
     osr = _os_release()
-    battery = status.battery()
+    free, total = status.memory()
     rows = [
         (
             "Race",
@@ -67,8 +67,7 @@ def sheet(cfg, color: bool) -> str:
             "Shell",
             Path(os.environ.get("SHELL", "sh")).name,
         ),
-        ("Hp", status.hp(battery).removeprefix("Hp:"), "Mem", status.size(status.mem_used(), 1)),
-        ("Pack", _packages(), "", ""),
+        ("Hp", status.hp(free, total).removeprefix("Hp:"), "Pack", _packages()),
     ]
     name = f"{cfg.name or getpass.getuser()} {cfg.title}"
     out = [paint(name, 15, color)]

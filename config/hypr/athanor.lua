@@ -38,9 +38,11 @@ hl.config({
 hl.on("hyprland.start", function()
     hl.exec_cmd(bin .. " wake --no-wall && hyprpaper --config " .. home .. "/current/hypr/hyprpaper.conf")
     hl.exec_cmd(bin .. " stages --follow")
-    hl.exec_cmd("waybar --config " .. home .. "/waybar/config.jsonc --style " .. home .. "/current/waybar/style.css")
+    hl.exec_cmd("waybar --config " .. home .. "/current/waybar/config.jsonc --style " .. home .. "/current/waybar/style.css")
     hl.exec_cmd("mako --config " .. home .. "/current/mako/config")
-    hl.exec_cmd("hypridle --config " .. home .. "/hypr/hypridle.conf")
+    -- Where systemd already runs hypridle (Omarchy enables it), a second copy
+    -- would fire every timeout twice; that one reads ~/.config/hypr/hypridle.conf.
+    hl.exec_cmd("systemctl --user -q is-enabled hypridle.service || hypridle --config " .. home .. "/hypr/hypridle.conf")
 end)
 
 hl.on("workspace.active", function(ws)

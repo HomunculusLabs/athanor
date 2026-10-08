@@ -10,32 +10,51 @@
     min-height: 0;
 }
 
+/* Three islands with the wallpaper between them: your vitals on the left,
+   the wells as the gauges in the middle, time, sky and knobs on the right. */
 window#waybar {
-    background: {{ bar }};
+    background: transparent;
     color: {{ fg }};
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+    background: {{ bar }};
     border: 2px solid {{ border }};
+}
+
+/* Waybar keeps the centre centred however wide the sides are, so the gap
+   between islands comes from the centre's margins. The right island is
+   narrower than the left; its margin pulls it in to sit as close. */
+.modules-center {
+    margin: 0 48px;
+}
+
+.modules-right {
+    margin-right: 178px;
 }
 
 #custom-rogue,
 #custom-claude,
 #custom-chatgpt,
-#custom-sky,
-#custom-moon {
+#custom-zai,
+#custom-sky {
     padding: 0 24px;
 }
 
 /* Fixed widths, measured on the widest each can get (Vellum 36px, tabular
    figures), so a ticking number never nudges its neighbours or resizes the bar. */
-#custom-rogue { min-width: 820px; }
+#custom-rogue { min-width: 660px; }
 #custom-brightness { min-width: 110px; }
 #wireplumber { min-width: 100px; }
 #bluetooth { min-width: 70px; }
-#custom-claude { min-width: 360px; padding-right: 12px; }
-#custom-chatgpt { min-width: 360px; padding-left: 12px; }
-#custom-sky { min-width: 730px; }
-#custom-moon { min-width: 500px; }
+#custom-claude { min-width: 260px; padding-right: 12px; }
+#custom-chatgpt { min-width: 260px; padding-left: 12px; padding-right: 12px; }
+#custom-zai { min-width: 260px; padding-left: 12px; }
+#custom-sky { min-width: 860px; }
 
-/* Brightness, sound and Bluetooth sit together in their own frame. */
+/* Brightness, sound and Bluetooth sit at the left island's inner end. */
 #controls {
     border-left: 2px solid {{ border }};
     padding: 0 12px;
@@ -57,14 +76,11 @@ window#waybar {
     color: {{ fg }};
 }
 
-#custom-moon {
-    border-left: 2px solid {{ border }};
-}
-
-/* The two wells share one frame. */
-#custom-claude,
-#custom-sky {
-    border-left: 2px solid {{ border }};
+/* The wells' island has the heavier frame, the bar's gauges. */
+.modules-center {
+    border-color: {{ dim }};
+    border-left-width: 4px;
+    border-right-width: 4px;
 }
 
 #custom-rogue.hurt {

@@ -40,7 +40,7 @@ def test_bar_markup_carries_planet_and_moon_signs():
     text = cli._bar_markup(datetime(2026, 10, 7, 0, 35).astimezone(), config.load())
     assert "Hour of the Moon" in text
     assert cli.SIGN_FONT in text
-    assert "♂☽" in text  # the day of Mars, the hour of the Moon
+    assert text.index("♂") < text.index("☽")  # the day of Mars, the hour of the Moon
     assert 'fallback="false"' in text
 
 
@@ -51,6 +51,12 @@ def test_moon_line_names_the_constellation_and_day():
     assert "\u260b" in text  # the dragon's tail, last night
     assert "The Moon burns in Leo" in tip
     assert "Wed fruit (unlucky)" in tip  # the dragon's tail the night before
+
+
+def test_brief_moon_line_leaves_the_turn_to_the_tooltip():
+    text, tip = cli._moon_lines(datetime(2026, 10, 7, 0, 35).astimezone(), brief=True)
+    assert "Fruit" in text and "then" not in text
+    assert "Into Virgo (root)" in tip
 
 
 def test_hour_tooltip_gives_local_sun_times():

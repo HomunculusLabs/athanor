@@ -7,6 +7,18 @@ RETIRED = {"dore": "cinnabar"}
 ANSI_NAMES = ("black", "red", "green", "yellow", "blue", "magenta", "cyan", "white")
 PIGMENTS = ("ink", "vermilion", "olive", "ochre", "slate", "madder", "verdigris", "paper")
 ROLES = ("bg", "fg", "dim", "border", "active", "bar", "barfg", "bar_warn", "sigil")
+# The bar's named hues, each the first ANSI slot that reads on the bar.
+BAR_HUES = {
+    "red": (9, 1),
+    "green": (10, 2),
+    "ochre": (3, 11),
+    "gold": (11, 3),
+    "blue": (12, 4),
+    "rose": (13, 5),
+    "teal": (14, 6),
+    "silver": (15, 7),
+    "lead": (8, 7),
+}
 
 
 @dataclass(frozen=True)
@@ -61,3 +73,27 @@ def luminance(hex_color: str) -> float:
 def contrast(a: str, b: str) -> float:
     hi, lo = sorted((luminance(a), luminance(b)), reverse=True)
     return (hi + 0.05) / (lo + 0.05)
+
+
+def readable(scheme: Scheme, slots: tuple[int, ...]) -> str:
+    """The first of the scheme's slots that reads on its bar, or the first lifted until it does."""
+    bar = scheme.roles["bar"]
+    for index in slots:
+        if contrast(scheme.ansi[index], bar) >= 4.5:
+            return scheme.ansi[index]
+    # Lift toward white on a dark bar, sink toward black on a light one, so it keeps its hue.
+    light_bar = luminance(bar) > 0.5
+    base, toward = rgb(scheme.ansi[slots[0]]), (0, 0, 0) if light_bar else (255, 255, 255)
+    for step in range(1, 11):
+        t = step / 10
+        mixed = "#" + "".join(
+            f"{round(a + (b - a) * t):02x}" for a, b in zip(base, toward, strict=True)
+        )
+        if contrast(mixed, bar) >= 4.5:
+            return mixed
+    return scheme.roles["barfg"]
+
+
+def bar_hues(scheme: Scheme) -> dict[str, str]:
+    """The named hues as template tokens: bar_red, bar_gold and the rest."""
+    return {f"bar_{name}": readable(scheme, slots) for name, slots in BAR_HUES.items()}

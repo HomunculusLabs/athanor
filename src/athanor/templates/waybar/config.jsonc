@@ -9,14 +9,9 @@
   "height": 44,
   "margin-bottom": 12,
   "spacing": 0,
-  "modules-left": [
-    "custom/rogue",
-    "group/controls",
-    "custom/claude",
-    "custom/chatgpt",
-    "custom/sky",
-    "custom/moon"
-  ],
+  "modules-left": ["custom/rogue", "group/controls"],
+  "modules-center": ["group/wells"],
+  "modules-right": ["custom/sky"],
 
   "custom/rogue": {
     "exec": "~/.local/bin/athanor status --waybar",
@@ -25,37 +20,40 @@
     "align": 0.5
   },
 
-  // Scroll to change, click for a menu (sound: click mutes, right-click picks).
+  // Scroll to change, click for a menu (sound: middle-click mutes; brightness:
+  // right-click flips the night light).
   "group/controls": {
     "orientation": "horizontal",
     "modules": ["custom/brightness", "wireplumber", "bluetooth"]
   },
   "custom/brightness": {
-    "exec": "omarchy brightness display --no-osd",
-    "format": "<span font_desc='Athanor 32px' fallback='false'>☼</span> {}%",
+    // A sun by day, a moon while the night light is on.
+    "exec": "~/.local/bin/athanor pick light",
+    "format": "{}",
     "interval": 60,
     "signal": 8,
     "align": 0.5,
     "on-scroll-up": "omarchy brightness display +5% >/dev/null; pkill -RTMIN+8 waybar",
     "on-scroll-down": "omarchy brightness display 5%- >/dev/null; pkill -RTMIN+8 waybar",
     "on-click": "~/.local/bin/athanor pick brightness; pkill -RTMIN+8 waybar",
-    "tooltip-format": "Brightness. Scroll to change, click for a level."
+    "on-click-right": "~/.local/bin/athanor pick night; pkill -RTMIN+8 waybar",
+    "tooltip-format": "Brightness. Scroll to change, click for the night light or a level,\nright-click to turn the night light on or off until its next scheduled change."
   },
   "wireplumber": {
-    "format": "♪ {volume}%",
+    "format": "<span foreground='{{ bar_teal }}'>♪</span> {volume}%",
     "format-muted": "♪ mute",
     "scroll-step": 5,
     "align": 0.5,
     "max-volume": 100,
-    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-    "on-click-right": "~/.local/bin/athanor pick sound",
-    "tooltip-format": "{node_name}\nScroll to change, click to mute, right-click to choose the output."
+    "on-click": "~/.local/bin/athanor pick sound",
+    "on-click-middle": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "tooltip-format": "{node_name}\nScroll to change, click for the mixer, middle-click to mute."
   },
   "bluetooth": {
-    "format": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> on",
+    "format": "<span font_desc='Athanor 32px' fallback='false' foreground='{{ bar_blue }}'>ᛒ</span> on",
     "format-off": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> off",
     "format-disabled": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> off",
-    "format-connected": "<span font_desc='Athanor 32px' fallback='false'>ᛒ</span> {num_connections}",
+    "format-connected": "<span font_desc='Athanor 32px' fallback='false' foreground='{{ bar_blue }}'>ᛒ</span> {num_connections}",
     "tooltip-format": "Bluetooth {status}\nClick for devices.",
     "tooltip-format-connected": "{device_enumerate}\nClick for devices.",
     "tooltip-format-enumerate-connected": "{device_alias}",
@@ -64,8 +62,14 @@
     "align": 0.5
   },
 
+  // The wells sit in the middle of the bar, framed like a game's gauges.
+  "group/wells": {
+    "orientation": "horizontal",
+    "modules": ["custom/claude", "custom/chatgpt", "custom/zai"]
+  },
   // Each subscription is its own well of energy. Click to switch between its
   // pools (the 5-hour session and the week), right-click to read them again.
+  // z.ai has only the 5-hour window and fills as it burns.
   "custom/claude": {
     "exec": "~/.local/bin/athanor agents --waybar --only claude",
     "return-type": "json",
@@ -82,15 +86,17 @@
     "on-click": "~/.local/bin/athanor agents --toggle codex",
     "on-click-right": "~/.local/bin/athanor agents --refresh"
   },
-  "custom/sky": {
-    "exec": "~/.local/bin/athanor hour --waybar --follow",
+  "custom/zai": {
+    "exec": "~/.local/bin/athanor agents --waybar --only zai",
     "return-type": "json",
     "restart-interval": 5,
-    "align": 0.5
+    "align": 0.5,
+    "on-click-right": "~/.local/bin/athanor agents --refresh"
   },
+  // The time, the planetary hour and the biodynamic moon in one box.
   // Click for the month's almanac in a floating page.
-  "custom/moon": {
-    "exec": "~/.local/bin/athanor moon --waybar",
+  "custom/sky": {
+    "exec": "~/.local/bin/athanor hour --waybar --follow",
     "return-type": "json",
     "restart-interval": 5,
     "align": 0.5,

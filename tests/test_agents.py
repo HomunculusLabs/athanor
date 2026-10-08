@@ -68,7 +68,7 @@ def test_low_energy_turns_red_and_tooltip_gives_the_refill(tmp_path):
     plans = agents.load(tmp_path)
     text, classes = agents.markup(plans, colors, NOW)
     assert classes == ["hurt"]
-    assert " 15" in text and colors["bar_warn"] in text
+    assert colors["bar_warn"] in text and " 15" not in text  # numbers are in the tooltip
     assert "full again in 1h00" in agents.tooltip(plans, NOW)
 
 
@@ -81,7 +81,7 @@ def test_each_source_has_its_own_energy(tmp_path):
     codex_text, _ = agents.markup_one(codex, None, colors, NOW)
     assert classes == []
     assert colors["energy.claude"] in claude_text and "\u263f" in claude_text
-    assert colors["energy.codex"] in codex_text and "\U0001f716" in codex_text
+    assert colors["energy.codex"] in codex_text and "\U0001f70d" in codex_text
     assert colors["energy.claude"] != colors["energy.codex"]
 
 
@@ -99,10 +99,12 @@ def test_one_pool_at_a_time_and_toggle(tmp_path):
     colors = agents.colors(palette.load("umber"))
     plan = agents.load(tmp_path)[0]
     text, _ = agents.markup_one(plan, agents.choices(picks).get("claude"), colors, NOW)
-    assert ">5h <" in text and ">wk <" not in text
+    assert "5h" not in text and "▰" * 9 + "<" in text  # the session, unlabelled
+    assert "▸ Session (5-hour)" in agents.tooltip([plan], NOW, agents.choices(picks))
     assert agents.toggle("claude", tmp_path, picks) == "wk"
     text, _ = agents.markup_one(plan, agents.choices(picks).get("claude"), colors, NOW)
-    assert ">wk <" in text and " 70" in text
+    assert "wk" not in text and "▰" * 7 + "<" in text  # no label; the tooltip says
+    assert "▸ Weekly (7-day)" in agents.tooltip([plan], NOW, agents.choices(picks))
     assert "Claude" not in text
     assert agents.toggle("claude", tmp_path, picks) == "5h"
 
@@ -133,3 +135,53 @@ def test_empty_refresh_keeps_last_limits(tmp_path):
 def test_never_had_limits_says_why(tmp_path):
     record(tmp_path, "codex", [], usageStatusText="Codex limits unavailable")
     assert agents.load(tmp_path)[0].problem == "Codex limits unavailable"
+
+
+ZAI_ANSWER = {
+    "limits": [
+        {"type": "TIME_LIMIT", "percentage": 3, "nextResetTime": 1792854204999},
+        {"type": "TOKENS_LIMIT", "percentage": 29, "nextResetTime": 1791475764064},
+    ],
+    "level": "max",
+}
+
+
+def test_zai_record_from_quota_answer():
+    rec = agents.zai_record(ZAI_ANSWER, NOW)
+    assert rec["ready"] and rec["tierLabel"] == "max"
+    assert [lim["label"] for lim in rec["limits"]] == ["Session (5-hour)", "MCP calls (month)"]
+    assert rec["limits"][0]["percent"] == 0.29
+    assert rec["limits"][0]["resetsAt"].startswith("2026-10-08")
+
+
+def test_zai_burns_up_and_never_warns(tmp_path):
+    rec = agents.zai_record(ZAI_ANSWER, NOW)
+    rec["limits"][0]["percent"] = 0.95  # nearly all burnt: the goal, not a problem
+    (tmp_path / "zai.json").write_text(json.dumps(rec))
+    colors = agents.colors(palette.load("umber"))
+    plan = agents.load(tmp_path)[0]
+    assert plan.name == "Z.ai" and [lim.short for lim in agents.pools(plan)] == ["5h"]
+    text, classes = agents.markup_one(plan, None, colors, NOW)
+    assert classes == []
+    assert "▰" * 9 + "<" in text and " 95" not in text
+    assert "5h" not in text  # one pool, so no need to name it
+    assert colors["bar_warn"] not in text and colors["active"] not in text
+    assert "95% burnt" in agents.tooltip([plan], NOW)
+
+
+def test_zai_untouched_starts_empty(tmp_path):
+    rec = agents.zai_record({"limits": [{"type": "TOKENS_LIMIT", "percentage": 0}]}, NOW)
+    (tmp_path / "zai.json").write_text(json.dumps(rec))
+    colors = agents.colors(palette.load("umber"))
+    text, _ = agents.markup_one(agents.load(tmp_path)[0], None, colors, NOW)
+    assert text.endswith("▱" * 10 + "</span>")
+
+
+def test_energy_hues_are_orange_blue_green():
+    colors = agents.colors(palette.load("umber"))
+    r, g, b = palette.rgb(colors["energy.claude"])
+    assert r > g > b
+    r, g, b = palette.rgb(colors["energy.codex"])
+    assert b > g > r
+    r, g, b = palette.rgb(colors["energy.zai"])
+    assert g > r and g > b

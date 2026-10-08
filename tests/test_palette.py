@@ -57,3 +57,10 @@ def test_a_retired_scheme_moves_to_its_successor(tmp_path, monkeypatch):
     (tmp_path / "athanor").mkdir()
     (tmp_path / "athanor" / "scheme").write_text("dore\n")
     assert transmute.saved_scheme() == "cinnabar"
+
+
+def test_bar_hues_read_on_every_bar():
+    for name in palette.SCHEMES:
+        scheme = palette.load(name)
+        for color in palette.bar_hues(scheme).values():
+            assert palette.contrast(color, scheme.roles["bar"]) >= 4.5

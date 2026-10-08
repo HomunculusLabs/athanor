@@ -44,8 +44,8 @@ and each has its own Doré engraving dithered down to two tones.
 ## The Screen
 
 The bar at the bottom is a roguelike status line. `Dlvl` stands for dungeon
-level and shows the workspace you're on. `$` is free disk space. `Hp` is the
-battery and `T` counts minutes since boot. Notifications show up one at a time
+level and shows the workspace you're on. `$` is free disk space. `Hp` is free
+memory and `T` counts minutes since boot. Notifications show up one at a time
 on the top line. `--More--` means more are waiting.
 
 ![The message line](docs/screenshots/message-line.png)

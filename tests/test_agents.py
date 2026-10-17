@@ -45,14 +45,14 @@ def test_model_weekly_only_on_bar_when_hot(tmp_path):
         [limit("Session (5-hour)", 0.1), limit("Weekly (7-day)", 0.1), limit("Fable Weekly", 0.2)],
     )
     plan = agents.load(tmp_path)[0]
-    assert [lim.short for lim in agents.shown(plan)] == ["5h", "wk"]
+    assert [lim.short for lim in agents.shown(plan)] == ["wk"]  # the session is tooltip-only
     record(
         tmp_path,
         "claude",
         [limit("Session (5-hour)", 0.1), limit("Weekly (7-day)", 0.1), limit("Fable Weekly", 0.6)],
     )
     plan = agents.load(tmp_path)[0]
-    assert [lim.short for lim in agents.shown(plan)] == ["5h", "wk", "fable"]
+    assert [lim.short for lim in agents.shown(plan)] == ["wk", "fable"]
 
 
 def test_meter_is_mana_left():
@@ -62,13 +62,14 @@ def test_meter_is_mana_left():
     assert agents.meter(0.0) == ("", "▱" * 10)
 
 
-def test_low_energy_turns_red_and_tooltip_gives_the_refill(tmp_path):
+def test_low_energy_keeps_its_colour_and_tooltip_gives_the_refill(tmp_path):
     record(tmp_path, "claude", [limit("Session (5-hour)", 0.85, hours=1)])
     colors = agents.colors(palette.load("umber"))
     plans = agents.load(tmp_path)
     text, classes = agents.markup(plans, colors, NOW)
-    assert classes == ["hurt"]
-    assert colors["bar_warn"] in text and " 15" not in text  # numbers are in the tooltip
+    assert classes == []
+    assert colors["bar_warn"] not in text and colors["active"] not in text
+    assert colors["energy.claude"] in text and " 15" not in text  # numbers are in the tooltip
     assert "full again in 1h00" in agents.tooltip(plans, NOW)
 
 
@@ -94,28 +95,33 @@ def test_energies_read_on_every_bar():
 
 
 def test_one_pool_at_a_time_and_toggle(tmp_path):
-    record(tmp_path, "claude", [limit("Session (5-hour)", 0.1), limit("Weekly (7-day)", 0.3)])
+    record(
+        tmp_path,
+        "claude",
+        [limit("Session (5-hour)", 0.5), limit("Weekly (7-day)", 0.1), limit("Fable Weekly", 0.7)],
+    )
     picks = tmp_path / "pools.json"
     colors = agents.colors(palette.load("umber"))
     plan = agents.load(tmp_path)[0]
     text, _ = agents.markup_one(plan, agents.choices(picks).get("claude"), colors, NOW)
-    assert "5h" not in text and "▰" * 9 + "<" in text  # the session, unlabelled
-    assert "▸ Session (5-hour)" in agents.tooltip([plan], NOW, agents.choices(picks))
-    assert agents.toggle("claude", tmp_path, picks) == "wk"
+    assert "wk" not in text and "▰" * 9 + "<" in text  # the weekly, unlabelled
+    tip = agents.tooltip([plan], NOW, agents.choices(picks))
+    assert "▸ Weekly (7-day)" in tip and "Session (5-hour)" in tip  # session: tooltip only
+    assert agents.toggle("claude", tmp_path, picks) == "fable"
     text, _ = agents.markup_one(plan, agents.choices(picks).get("claude"), colors, NOW)
-    assert "wk" not in text and "▰" * 7 + "<" in text  # no label; the tooltip says
-    assert "▸ Weekly (7-day)" in agents.tooltip([plan], NOW, agents.choices(picks))
+    assert "fable" not in text and "▰" * 3 + "<" in text  # no label; the tooltip says
+    assert "▸ Fable Weekly" in agents.tooltip([plan], NOW, agents.choices(picks))
     assert "Claude" not in text
-    assert agents.toggle("claude", tmp_path, picks) == "5h"
+    assert agents.toggle("claude", tmp_path, picks) == "wk"
 
 
-def test_hidden_pool_running_low_tints_the_sigil(tmp_path):
+def test_hidden_pool_running_low_leaves_the_sigil_alone(tmp_path):
     record(tmp_path, "claude", [limit("Session (5-hour)", 0.1), limit("Weekly (7-day)", 0.9)])
     colors = agents.colors(palette.load("umber"))
     text, classes = agents.markup_one(agents.load(tmp_path)[0], "5h", colors, NOW)
     sigil = text.split("</span>")[0]
-    assert colors["bar_warn"] in sigil  # the weekly pool is nearly dry
-    assert classes == ["hurt"]
+    assert colors["energy.claude"] in sigil
+    assert classes == []
 
 
 def test_until():

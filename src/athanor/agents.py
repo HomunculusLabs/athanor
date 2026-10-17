@@ -146,12 +146,17 @@ def until(moment: datetime | None, now: datetime) -> str:
 
 
 def shown(plan: Plan) -> tuple[Limit, ...]:
-    # The bar carries the session and the main weekly window; the rest
-    # (model-specific weeklies) wait in the tooltip unless they run hot.
-    main = [lim for lim in plan.limits if lim.short in ("5h", "wk")]
+    # The bar carries the main weekly window; the session stays in the
+    # tooltip, and so do model-specific weeklies unless they run hot. A burn
+    # well's session is all it has, so that one stays on the bar.
     if plan.id in BURN:
+        main = [lim for lim in plan.limits if lim.short in ("5h", "wk")]
         return tuple(main) or plan.limits[:1]
-    hot = [lim for lim in plan.limits if lim not in main and lim.percent >= WARN]
+    main = [lim for lim in plan.limits if lim.short == "wk"]
+    hot = [
+        lim for lim in plan.limits
+        if lim not in main and lim.short != "5h" and lim.percent >= WARN
+    ]
     return tuple(main + hot) or plan.limits[:1]
 
 
@@ -173,7 +178,6 @@ ENERGIES = {
 }
 OTHER = Energy("Aether", "\u2609", (15, 7))
 METER = 10
-LOW, DRAINED = 0.5, 0.2  # energy left before the bar turns amber, then red
 SIGN_FONT = "Athanor 32px"
 
 
@@ -232,17 +236,13 @@ def chosen(plan: Plan, choice: str | None) -> Limit | None:
 def markup_one(
     plan: Plan, choice: str | None, colors: dict[str, str], now: datetime
 ) -> tuple[str, list[str]]:
-    dim, low, drained = colors["dim"], colors["active"], colors["bar_warn"]
+    dim = colors["dim"]
     own = colors.get(f"energy.{plan.id}", colors.get("energy", colors["fg"]))
 
-    def tint(left: float) -> str:
-        return drained if left < DRAINED else low if left < LOW else own
-
-    # The bar keeps one shape, sigil and meter, so it never changes width.
+    # The bar keeps one shape and colour, sigil and meter, so it never changes
+    # width or warns: how low a well is shows only in how many cells are lit.
     # Which pool is on show, the numbers and the refill times live in the
-    # tooltip. The sigil carries the lowest of all the pools, so a pool out of
-    # sight that runs low still shows.
-    lowest = min((1 - lim.percent for lim in pools(plan)), default=1.0)
+    # tooltip.
     lim = chosen(plan, choice)
 
     if plan.id in BURN:
@@ -256,26 +256,20 @@ def markup_one(
             full, empty = meter(burnt)
             bits.append(_paint(full, own) + _paint(empty, dim))
         return "  ".join(bits), []
-    bits = [_sigil(energy(plan.id).sigil, tint(lowest))]
+    bits = [_sigil(energy(plan.id).sigil, own)]
     if lim is None:
         bits.append(_paint("unread", dim))
     else:
         left = max(0.0, 1 - lim.percent)
         full, spent = meter(left)
-        bits.append(_paint(full, tint(left)) + _paint(spent, dim))
-    classes = ["hurt"] if lowest < DRAINED else ["warn"] if lowest < LOW else []
-    return "  ".join(bits), classes
+        bits.append(_paint(full, own) + _paint(spent, dim))
+    return "  ".join(bits), []
 
 
 def markup(plans: list[Plan], colors: dict[str, str], now: datetime) -> tuple[str, list[str]]:
     """Every source on one line, each showing its first pool."""
-    parts, classes = [], set()
-    for plan in plans:
-        text, cls = markup_one(plan, None, colors, now)
-        parts.append(text)
-        classes.update(cls)
-    order = ["hurt"] if "hurt" in classes else ["warn"] if "warn" in classes else []
-    return "   ".join(parts), order
+    parts = [markup_one(plan, None, colors, now)[0] for plan in plans]
+    return "   ".join(parts), []
 
 
 def tooltip(plans: list[Plan], now: datetime, picks: dict[str, str] | None = None) -> str:

@@ -10,7 +10,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, cursor, hypr, icons, palette, sigil, sky, stages, tarot, wall
+from . import config, cursor, gtk, hypr, icons, palette, sigil, sky, stages, tarot, wall
 from .paths import cache_dir, current_dir, runtime_dir, state_dir, write_atomic
 from .render import render_tree
 
@@ -196,6 +196,7 @@ def tokens(
     return {
         **scheme.colors(),
         **palette.bar_hues(scheme),
+        **palette.gtk(scheme),
         "scheme": scheme.name,
         "label": scheme.label,
         "screen_w": str(w),
@@ -258,8 +259,12 @@ def apply(
     if cfg.icons:
         icons.render(scheme, inherits=icons.previous_theme(), with_apps=cfg.app_icons)
         icons.use()
-        for path in icons.mark(cfg.folders):
+        for path in icons.mark(cfg.folders, cfg.folder_signs, cfg.words):
             log(f"no sign for {path} in [folders]: no such folder or sign")
+    if cfg.gtk:
+        gtk.render(scheme)
+        for path in gtk.use(scheme):
+            log(f"{path} is yours, so GTK apps won't take the scheme. Move it aside to use it.")
 
     if reload:
         hypr.request("reload")

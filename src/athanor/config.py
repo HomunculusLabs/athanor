@@ -44,7 +44,11 @@ class Config:
     stages: bool = False
     icons: bool = True
     app_icons: bool = True
+    gtk: bool = True
     folders: dict[str, str] = field(default_factory=dict)
+    folder_signs: list[str] = field(default_factory=list)
+    words: dict[str, str] = field(default_factory=dict)
+    boot_scheme: str = "umber"
 
 
 def load() -> Config:
@@ -75,5 +79,9 @@ def load() -> Config:
         stages=bool(raw.get("transmute", {}).get("stages", False)),
         icons=bool(display.get("icons", True)),
         app_icons=bool(display.get("app_icons", True)),
+        gtk=bool(display.get("gtk", True)),
         folders={str(k): str(v) for k, v in raw.get("folders", {}).items()},
+        folder_signs=[str(p) for p in raw.get("folder_signs", {}).get("inside", [])],
+        words={str(k): str(v) for k, v in raw.get("folder_signs", {}).get("words", {}).items()},
+        boot_scheme=str(raw.get("boot", {}).get("scheme", Config.boot_scheme)),
     )

@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 import shutil
@@ -51,7 +52,8 @@ def _data() -> dict:
 def signs() -> dict[str, tuple[str, ...]]:
     out = {}
     arts = {name: s["art"] for name, s in _data()["signs"].items()}
-    arts |= {f"letter-{ch}": art for ch, art in _data()["letters"].items()}
+    arts |= {f"glyph-{cp}": art for cp, art in _data()["glyphs"].items()}
+    arts |= {name: art for name, art in zip(bijas(), _data()["bijas"].values(), strict=True)}
     for name, art in arts.items():
         rows = art.strip("\n").split("\n")
         width = max(map(len, rows))
@@ -196,7 +198,7 @@ def apps() -> dict[str, str]:
     dirs = os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share"
     found = {}
     for base in [_data_home(), *(Path(d) for d in dirs.split(":") if d)]:
-        for path in sorted((base / "applications").glob("*.desktop")):
+        for path in sorted((base / "applications").rglob("*.desktop")):
             entry, section = {}, False
             for line in path.read_text(errors="replace").splitlines():
                 if line.startswith("["):
@@ -213,9 +215,27 @@ def apps() -> dict[str, str]:
     return found
 
 
-def _letter(name: str) -> str | None:
-    first = next((ch for ch in name.upper() if "A" <= ch <= "Z"), None)
-    return f"letter-{first}" if first else None
+@cache
+def bijas() -> tuple[str, ...]:
+    """The bija signs' names, numbered in the order icons.toml lists the syllables."""
+    return tuple(f"bija-{n:02d}" for n in range(1, len(_data()["bijas"]) + 1))
+
+
+def _spread(names: list[str], pool: list[str]) -> dict[str, str]:
+    """Pick from pool by each name's hash, none shared until the pool runs out."""
+    taken, out = set(), {}
+    for name in sorted(set(names)):
+        start = int(hashlib.sha256(name.lower().encode()).hexdigest(), 16) % len(pool)
+        # Step on to the next free one; once all are taken, they repeat.
+        free = [pool[(start + k) % len(pool)] for k in range(len(pool))]
+        out[name] = next((p for p in free if p not in taken), pool[start])
+        taken.add(out[name])
+    return out
+
+
+def glyphs(titles: list[str]) -> dict[str, str]:
+    """A glyph for each app name, picked from the name so it stays put, none shared."""
+    return _spread(titles, [f"glyph-{cp}" for cp in sorted(_data()["glyphs"])])
 
 
 def assign(
@@ -228,10 +248,11 @@ def assign(
     }
     for name in literal["status"]:
         out["status"][name] = next(r.sign for r in rules("status") if name in r.match)
-    for icon, title in (installed or {}).items():
-        sign = next((r.sign for r in rules("app") if icon in r.match), None) or _letter(title)
-        if sign:
-            out["app"][icon] = sign
+    installed = installed or {}
+    signed = {i: r.sign for i in installed for r in rules("app") if i in r.match}
+    picked = glyphs([t for i, t in installed.items() if i not in signed])
+    for icon, title in installed.items():
+        out["app"][icon] = signed.get(icon) or picked[title]
     folders = names["places"] | names["mimetypes"] | literal["folder"]
     for name in sorted(folders):
         for r in rules("folder"):
@@ -345,22 +366,101 @@ def use() -> None:
         _gsettings("set", *GSETTINGS, THEME)
 
 
-def mark(paths: dict[str, str]) -> list[str]:
-    """Give folders from the [folders] table their sign. Returns what was skipped."""
-    if not shutil.which("gio"):
-        return []
-    marked, skipped = [], []
+def _special_dirs() -> set[Path]:
+    """The XDG user folders (Documents, Music and so on), which have signs of their own."""
+    config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    found = {Path.home()}
+    try:
+        lines = (config / "user-dirs.dirs").read_text().splitlines()
+    except FileNotFoundError:
+        return found
+    for line in lines:
+        if line.startswith("XDG_") and "=" in line:
+            value = line.split("=", 1)[1].strip().strip('"').replace("$HOME", str(Path.home()))
+            found.add(Path(value))
+    return found
+
+
+WORD = re.compile(r"[^\W\d_]+|\d+")
+
+
+def words(name: str) -> list[str]:
+    """A folder name's words, split at spaces, punctuation and digits, in lower case."""
+    return [w.lower() for w in WORD.findall(name)]
+
+
+def by_word(name: str, own: dict[str, str] | None = None) -> str | None:
+    """The sign a word in the name calls for: the user's words first, then icons.toml's."""
+    parts = words(name)
+    for pattern, sign in (own or {}).items():
+        if sign in signs() and any(fnmatchcase(w, pattern.lower()) for w in parts):
+            return sign
+    for r in rules("words"):
+        if any(fnmatchcase(w, p) for p in r.match for w in parts):
+            return r.sign
+    return None
+
+
+def pool() -> list[str]:
+    """What folders without a sign draw from: the bijas and the glyphs."""
+    return list(bijas()) + [f"glyph-{cp}" for cp in sorted(_data()["glyphs"])]
+
+
+def marks(
+    paths: dict[str, str], inside: list[str], own_words: dict[str, str] | None = None
+) -> tuple[dict[str, str], list[str]]:
+    """Which folders get which icon: [folders] entries, then for each folder inside the
+    [folder_signs] parents a sign from a word in its name, or else one from the pool.
+    Returns the marks and the [folders] entries skipped."""
+    out, skipped = {}, []
     for path, name in paths.items():
         target = Path(path).expanduser()
         if name not in signs() or not target.is_dir():
             skipped.append(path)
             continue
-        subprocess.run(
-            ["gio", "set", str(target), "metadata::custom-icon-name", f"athanor-folder-{name}"],
-            capture_output=True,
-            check=False,
-        )
-        marked.append(str(target))
+        out[str(target)] = f"athanor-folder-{name}"
+    special = _special_dirs()
+    children = []
+    for parent in inside:
+        base = Path(parent).expanduser()
+        if base.is_dir():
+            children += [
+                p
+                for p in base.iterdir()
+                if p.is_dir() and not p.name.startswith(".") and p not in special
+            ]
+    children = [p for p in dict.fromkeys(children) if str(p) not in out]
+    named = {p.name: by_word(p.name, own_words) for p in children}
+    # Spread over every parent at once, so no two folders share a sign while any are free.
+    picked = _spread([n for n, sign in named.items() if not sign], pool())
+    for p in children:
+        out[str(p)] = f"athanor-folder-{named[p.name] or picked[p.name]}"
+    return out, skipped
+
+
+def mark(
+    paths: dict[str, str], inside: list[str] = (), own_words: dict[str, str] | None = None
+) -> list[str]:
+    """Set each folder's icon in its metadata. Returns the [folders] entries skipped."""
+    if not shutil.which("gio"):
+        return []
+    wanted, skipped = marks(paths, list(inside), own_words)
+    state = state_dir() / "folder-marks"
+    before = {}
+    if state.exists():
+        for line in state.read_text().splitlines():
+            path, _, icon = line.partition("\t")
+            before[path] = icon
+
+    def gio(*args: str) -> None:
+        subprocess.run(["gio", "set", *args], capture_output=True, check=False)
+
+    for path, icon in wanted.items():
+        if before.get(path) != icon:
+            gio(path, "metadata::custom-icon-name", icon)
+    for path in before.keys() - wanted.keys():
+        if Path(path).is_dir():
+            gio("-t", "unset", path, "metadata::custom-icon-name")
     # The uninstaller unsets these.
-    write_atomic(state_dir() / "folder-marks", "".join(f"{p}\n" for p in marked))
+    write_atomic(state, "".join(f"{p}\t{i}\n" for p, i in sorted(wanted.items())))
     return skipped

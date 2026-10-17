@@ -100,12 +100,22 @@ def _sample(when: datetime) -> dict:
     }
 
 
-PHASE_SIGNS = ("\U0001f311", "\U0001f313", "\U0001f315", "\U0001f317")
+def lit_sign(index: int) -> str:
+    """The glyph for phase `index` (0 new … 4 full … 7 waning crescent).
+
+    Athanor inks the shadow, like a printed calendar. Everywhere we draw
+    it the ink is light on a dark ground, so the opposite phase's glyph is
+    taken: its ink falls on this phase's light, the same side lit.
+    """
+    return chr(0x1F311 + (index + 4) % 8)
+
+
+PHASE_SIGNS = tuple(lit_sign(q * 2) for q in range(4))
 
 
 def phase_sign(when: datetime) -> str:
     """One of Athanor's eight moon-phase glyphs for this moment."""
-    return chr(0x1F311 + int(moon.elongation(when) / 45 + 0.5) % 8)
+    return lit_sign(int(moon.elongation(when) / 45 + 0.5) % 8)
 
 
 # How far either side of the moment Thun counts as unfavourable.

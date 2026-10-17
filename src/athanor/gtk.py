@@ -1,0 +1,201 @@
+import colorsys
+import os
+import re
+import shutil
+import subprocess
+from collections import Counter
+from importlib.resources import files
+from pathlib import Path
+
+from . import palette
+from .paths import current_dir, state_dir, write_atomic
+
+THEME = "athanor"
+INTERFACE = "org.gnome.desktop.interface"
+
+
+def theme_link() -> Path:
+    data = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share"
+    return Path(data) / "themes" / THEME
+
+
+def user_css() -> Path:
+    """The stylesheet libadwaita apps load after their own."""
+    config = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
+    return Path(config) / "gtk-4.0" / "gtk.css"
+
+
+def rendered() -> Path:
+    return current_dir() / "gtk"
+
+
+COLOR = re.compile(
+    r"#(?P<hex>[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b"
+    r"|rgba?\(\s*(?P<r>\d+)\s*,\s*(?P<g>\d+)\s*,\s*(?P<b>\d+)\s*(?:,\s*(?P<a>[\d.]+)\s*)?\)"
+)
+# Hue bands (degrees) and the scheme colour each recolours to.
+FAMILIES = (("accent", 180, 300), ("green", 70, 180), ("yellow", 15, 70))
+NEUTRAL = 0.12
+# GTK's own ground and text, which become the scheme's.
+GROUND = {"dark": ("#353535", "#eeeeec"), "light": ("#f6f5f4", "#2e3436")}
+
+# Added after GTK 3's recoloured Adwaita: Vellum and readable selections.
+GTK3_EXTRA = """
+window, popover, tooltip, menu {{ font-family: "Vellum", sans-serif; font-size: 24px; }}
+*:selected, .view:selected, row:selected, treeview.view:selected, selection,
+button.suggested-action, switch:checked {{ color: {bg}; }}
+"""
+
+
+def _hex(rgb: tuple[float, float, float]) -> str:
+    return "#" + "".join(f"{round(max(0, min(255, c))):02x}" for c in rgb)
+
+
+def _parse(m: re.Match) -> tuple[tuple[int, int, int], str | None]:
+    if m.group("hex"):
+        h = m.group("hex")
+        h = "".join(c * 2 for c in h) if len(h) == 3 else h
+        return palette.rgb("#" + h), None
+    return (int(m.group("r")), int(m.group("g")), int(m.group("b"))), m.group("a")
+
+
+def _hls(rgb: tuple[int, int, int]) -> tuple[float, float, float]:
+    return colorsys.rgb_to_hls(*(c / 255 for c in rgb))
+
+
+def _family(rgb: tuple[int, int, int]) -> str | None:
+    h, _, s = _hls(rgb)
+    if s < NEUTRAL or max(rgb) - min(rgb) < 24:
+        return None
+    deg = h * 360
+    return next((name for name, lo, hi in FAMILIES if lo <= deg < hi), "red")
+
+
+def _lightness(rgb: tuple[int, int, int]) -> float:
+    return _hls(rgb)[1]
+
+
+def _shift(target: str, by: float) -> str:
+    """Lighten (by > 0) or darken a colour, keeping its hue."""
+    return palette.blend(target, "#ffffff" if by > 0 else "#000000", min(abs(by), 1))
+
+
+def recolor(css: str, scheme: palette.Scheme, variant: str) -> str:
+    """GTK's stylesheet with every colour moved onto the scheme."""
+    roles, ansi = scheme.roles, scheme.ansi
+    bg, fg = roles["bg"], roles["fg"]
+    gtk_bg, gtk_fg = (palette.rgb(c) for c in GROUND[variant])
+    anchors = sorted(
+        [
+            (0.0, palette.blend(min(bg, fg, key=palette.luminance), "#000000", 0.6)),
+            (sum(gtk_bg) / 765, bg),
+            (sum(gtk_fg) / 765, fg),
+            (1.0, palette.blend(max(bg, fg, key=palette.luminance), "#ffffff", 0.4)),
+        ]
+    )
+    targets = {"accent": roles["active"], "red": ansi[1], "green": ansi[2], "yellow": ansi[11]}
+    # Each family's commonest colour in GTK's sheet lands exactly on the scheme's.
+    seen = Counter(_parse(m)[0] for m in COLOR.finditer(css))
+    refs = {}
+    for rgb, _ in seen.most_common():
+        fam = _family(rgb)
+        if fam and fam not in refs:
+            refs[fam] = _lightness(rgb)
+
+    def neutral(v: float) -> str:
+        for (v0, c0), (v1, c1) in zip(anchors, anchors[1:], strict=False):
+            if v <= v1:
+                return palette.blend(c0, c1, 0 if v1 == v0 else (v - v0) / (v1 - v0))
+        return anchors[-1][1]
+
+    def sub(m: re.Match) -> str:
+        rgb, alpha = _parse(m)
+        fam = _family(rgb)
+        if fam is None:
+            out = neutral(sum(rgb) / 765)
+        else:
+            out = _shift(targets[fam], _lightness(rgb) - refs[fam])
+        if alpha is None:
+            return out
+        r, g, b = palette.rgb(out)
+        return f"rgba({r}, {g}, {b}, {alpha})"
+
+    return COLOR.sub(sub, css)
+
+
+RADIUS = re.compile(r"(-?[a-z][a-z-]*radius):\s*[^;%}]*?px[^;%}]*(?=;|})")
+# Where each stylesheet's images live inside GTK, since "assets/..." was relative to it.
+ASSETS = {"gtk3": "Adwaita", "gtk4": "Default"}
+
+
+def _vendored(name: str) -> str:
+    css = (files("athanor") / "adwaita" / name).read_text()
+    base = ASSETS[name.split("-")[0]]
+    css = css.replace('url("assets/', f'url("resource:///org/gtk/libgtk/theme/{base}/assets/')
+    # Square, like the icons; radii in % (radio buttons) stay round.
+    return RADIUS.sub(lambda m: f"{m.group(1)}: 0", css)
+
+
+def render(scheme: palette.Scheme) -> Path:
+    """Write the GTK 3 and plain GTK 4 stylesheets of the athanor theme."""
+    variant = "dark" if palette.is_dark(scheme) else "light"
+    root = rendered()
+    header = f"/* Generated by athanor transmute ({scheme.label}). Edits are overwritten. */\n"
+    gtk3 = recolor(_vendored(f"gtk3-{variant}.css"), scheme, variant)
+    write_atomic(
+        root / "gtk-3.0" / "gtk.css", header + gtk3 + GTK3_EXTRA.format(bg=scheme.roles["bg"])
+    )
+    gtk4 = recolor(_vendored(f"gtk4-{variant}.css"), scheme, variant)
+    ours = (root / "gtk-4.0" / "athanor.css").read_text()
+    write_atomic(root / "gtk-4.0" / "gtk.css", header + gtk4 + "\n" + ours)
+    return root
+
+
+def gsettings(*args: str) -> str | None:
+    if not shutil.which("gsettings"):
+        return None
+    r = subprocess.run(["gsettings", *args], capture_output=True, text=True, check=False)
+    return r.stdout.strip().strip("'") if r.returncode == 0 else None
+
+
+def _remember(key: str) -> None:
+    """Keep the value Athanor first replaced, for the uninstaller to put back."""
+    saved = state_dir() / key
+    if saved.exists():
+        return
+    value = gsettings("get", INTERFACE, key)
+    if value is not None:
+        write_atomic(saved, value + "\n")
+
+
+def _set(key: str, value: str) -> None:
+    if gsettings("get", INTERFACE, key) not in (None, value):
+        _remember(key)
+        gsettings("set", INTERFACE, key, value)
+
+
+def _link(link: Path, target: Path) -> bool:
+    """Point link at target unless something else of the user's is already there."""
+    if link.is_symlink():
+        if link.resolve() == target.resolve():
+            return True
+        if not str(os.readlink(link)).startswith(str(current_dir())):
+            return False
+        link.unlink()
+    elif link.exists():
+        return False
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(target)
+    return True
+
+
+def use(scheme: palette.Scheme) -> list[str]:
+    """Make the rendered theme the GTK theme. Returns what had to be left alone."""
+    skipped = []
+    if not _link(theme_link(), rendered()):
+        skipped.append(str(theme_link()))
+    if not _link(user_css(), rendered() / "gtk-4.0" / "athanor.css"):
+        skipped.append(str(user_css()))
+    _set("gtk-theme", THEME)
+    _set("color-scheme", "prefer-dark" if palette.is_dark(scheme) else "prefer-light")
+    return skipped

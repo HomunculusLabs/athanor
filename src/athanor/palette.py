@@ -61,6 +61,26 @@ def rgb(hex_color: str) -> tuple[int, int, int]:
     return n >> 16, (n >> 8) & 255, n & 255
 
 
+def blend(a: str, b: str, t: float) -> str:
+    """The colour t of the way from a to b."""
+    return "#" + "".join(
+        f"{round(x + (y - x) * t):02x}" for x, y in zip(rgb(a), rgb(b), strict=True)
+    )
+
+
+def is_dark(scheme: Scheme) -> bool:
+    return luminance(scheme.roles["bg"]) < 0.2
+
+
+def gtk(scheme: Scheme) -> dict[str, str]:
+    """Surfaces for GTK, between the ground and the border, as template tokens."""
+    bg, border = scheme.roles["bg"], scheme.roles["border"]
+    return {
+        "gtk_sunk": blend(bg, border, 0.45),
+        "gtk_raised": blend(bg, border, 0.7),
+    }
+
+
 def luminance(hex_color: str) -> float:
     def channel(v: int) -> float:
         c = v / 255

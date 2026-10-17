@@ -36,6 +36,8 @@ def fake_theme(root, name, places=(), mimetypes=(), inherits=""):
 @pytest.mark.parametrize("kind", ["folder", "file", "app"])
 @pytest.mark.parametrize("name", ALL)
 def test_each_sign_fits_inside_with_air(kind, name):
+    if name.startswith("bija-") and kind != "folder":
+        pytest.skip("bijas only mark folders")
     rows = icons.signs()[name]
     assert set("".join(rows)) <= {"#", " "}
     g = icons.grid(kind, name)
@@ -166,7 +168,61 @@ def test_marks_skip_missing_folders_and_unknown_signs(tmp_path, monkeypatch):
         ]
     ]
     marks = (tmp_path / "state" / "athanor" / "folder-marks").read_text()
-    assert marks == f"{tmp_path / 'projects'}\n"
+    assert marks == f"{tmp_path / 'projects'}\tathanor-folder-fire\n"
+
+
+def test_folders_get_a_word_sign_or_one_from_the_pool(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    home = tmp_path / "home"
+    for name in ("Music", "src", "notes", ".cache", "farm", "zzq", "qqz", "Seed-Bank"):
+        (home / name).mkdir(parents=True)
+    (home / "file.txt").write_text("")
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "user-dirs.dirs").write_text(f'XDG_MUSIC_DIR="{home}/Music"\n')
+    got, _ = icons.marks({str(home / "farm"): "fire"}, [str(home)])
+    assert got[str(home / "farm")] == "athanor-folder-fire", "[folders] wins"
+    assert str(home / "Music") not in got and str(home / ".cache") not in got
+    assert got[str(home / "notes")] == "athanor-folder-ouroboros"
+    assert got[str(home / "src")] == "athanor-folder-sulphur"
+    assert got[str(home / "Seed-Bank")] == "athanor-folder-leaf"
+    a, b = got[str(home / "zzq")], got[str(home / "qqz")]
+    assert a != b and {a, b} <= {f"athanor-folder-{p}" for p in icons.pool()}
+    assert icons.marks({}, [str(home)])[0][str(home / "zzq")] == a, "it stays put"
+    own, _ = icons.marks({}, [str(home)], {"note*": "flower", "zz*": "nope"})
+    assert own[str(home / "notes")] == "athanor-folder-flower", "your words come first"
+    assert own[str(home / "zzq")] == a, "a word with an unknown sign is ignored"
+
+
+def test_names_split_into_words():
+    assert icons.words("BonzAi-Buddy_audio streaming.v2") == [
+        "bonzai",
+        "buddy",
+        "audio",
+        "streaming",
+        "v",
+        "2",
+    ]
+    assert icons.words("nq138-alt") == ["nq", "138", "alt"]
+
+
+def test_every_word_rule_names_a_sign_and_the_pool_is_big():
+    for r in icons.rules("words"):
+        assert r.sign in icons.signs()
+    assert len(icons.pool()) >= 200
+
+
+def test_marking_skips_what_is_already_set_and_unsets_what_left(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setattr(icons.shutil, "which", lambda _: "/usr/bin/gio")
+    calls = []
+    monkeypatch.setattr(icons.subprocess, "run", lambda args, **k: calls.append(args))
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    icons.mark({str(a): "fire", str(b): "water"})
+    calls.clear()
+    icons.mark({str(a): "fire"})
+    assert calls == [["gio", "set", "-t", "unset", str(b), "metadata::custom-icon-name"]]
 
 
 def test_symbolic_signs_fit_the_em():
@@ -187,10 +243,10 @@ def test_symbolic_icons_are_crisp_svgs(tmp_path, monkeypatch):
 
 
 def desktop(root, name, **entry):
-    d = root / "applications"
-    d.mkdir(parents=True, exist_ok=True)
+    path = root / "applications" / f"{name}.desktop"
+    path.parent.mkdir(parents=True, exist_ok=True)
     body = "".join(f"{k}={v}\n" for k, v in entry.items())
-    (d / f"{name}.desktop").write_text(f"[Desktop Entry]\nType=Application\n{body}")
+    path.write_text(f"[Desktop Entry]\nType=Application\n{body}")
 
 
 def test_apps_are_found_like_a_launcher_finds_them(tmp_path, monkeypatch):
@@ -201,24 +257,32 @@ def test_apps_are_found_like_a_launcher_finds_them(tmp_path, monkeypatch):
     desktop(tmp_path / "sys", "hidden", Name="Hidden", Icon="hidden", NoDisplay="true")
     desktop(tmp_path / "sys", "figma", Name="Figma", Icon="/opt/figma.png")
     desktop(tmp_path / "sys", "elden", Name="ELDEN RING", Icon="steam_icon_1245620")
+    desktop(tmp_path / "home", "wine/Programs/bnet", Name="Battle.net", Icon="0A1B_Battle.net.0")
     assert icons.apps() == {
+        "0A1B_Battle.net.0": "Battle.net",
         "firefox": "Firefox",
         "firefox-old": "Old Firefox",
         "steam_icon_1245620": "ELDEN RING",
     }
 
 
-def test_apps_get_their_sign_or_their_initial():
-    got = icons.assign(
-        {"places": set(), "mimetypes": set()},
-        {"firefox": "Firefox", "steam_icon_1245620": "ELDEN RING", "btop": "btop++", "x": "123"},
-    )
-    assert got["app"] == {
-        "firefox": "fire",
-        "steam_icon_1245620": "letter-E",
-        "btop": "letter-B",
-    }
+def test_apps_get_their_sign_or_a_glyph_of_their_own():
+    installed = {"firefox": "Firefox", "steam_icon_1245620": "ELDEN RING", "btop": "btop++"}
+    got = icons.assign({"places": set(), "mimetypes": set()}, installed)
+    assert got["app"]["firefox"] == "fire"
+    elden, btop = got["app"]["steam_icon_1245620"], got["app"]["btop"]
+    assert elden.startswith("glyph-") and btop.startswith("glyph-") and elden != btop
+    again = icons.assign({"places": set(), "mimetypes": set()}, dict(reversed(installed.items())))
+    assert again["app"] == got["app"], "the same app keeps its glyph"
     assert got["status"]["dialog-warning"] == "warning"
+
+
+def test_glyphs_are_not_shared_until_they_run_out():
+    pool = len(icons._data()["glyphs"])
+    picked = icons.glyphs([f"app {n}" for n in range(pool)])
+    assert len(set(picked.values())) == pool
+    more = icons.glyphs([f"app {n}" for n in range(pool + 5)])
+    assert len(more) == pool + 5
 
 
 def test_app_icons_can_be_left_out(tmp_path, monkeypatch):
@@ -229,3 +293,9 @@ def test_app_icons_can_be_left_out(tmp_path, monkeypatch):
     assert (root / "96x96" / "apps" / "firefox.png").resolve().name == "athanor-app-fire.png"
     icons.render(palette.load("umber"), root, with_apps=False)
     assert not (root / "96x96" / "apps").exists()
+
+
+def test_the_pool_leaves_word_signs_their_meaning():
+    worded = {r.sign for r in icons.rules("words")}
+    art = {icons.signs()[s] for s in worded}
+    assert not any(icons.signs()[p] in art for p in icons.pool())

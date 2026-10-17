@@ -420,7 +420,7 @@ uninstall() {
     say "removing the icons in $icons"
     if [[ -f $state/folder-marks ]] && command -v gio >/dev/null; then
       local marked
-      while IFS= read -r marked; do
+      while IFS=$'\t' read -r marked _; do
         [[ -d $marked ]] && run gio set -t unset "$marked" metadata::custom-icon-name
       done <"$state/folder-marks"
     fi
@@ -430,6 +430,19 @@ uninstall() {
     fi
     run rm -rf "$icons"
   fi
+  local gtk_link
+  for gtk_link in "${XDG_DATA_HOME:-$HOME/.local/share}/themes/athanor" "$config/gtk-4.0/gtk.css"; do
+    if [[ -L $gtk_link && $(readlink "$gtk_link") == "$home/current/"* ]]; then
+      say "removing $gtk_link"
+      run rm "$gtk_link"
+    fi
+  done
+  local key
+  for key in gtk-theme color-scheme; do
+    if [[ -f $state/$key ]] && command -v gsettings >/dev/null; then
+      run gsettings set org.gnome.desktop.interface "$key" "$(cat "$state/$key")"
+    fi
+  done
   if ((purge)); then
     say "purging settings, fonts, cache and state"
     run rm -rf "$home" "$fonts" "$cache" "$state"

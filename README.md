@@ -34,6 +34,12 @@ accent has 4.5:1.
 
 ![The palette](docs/screenshots/palette.png)
 
+GTK apps take the scheme as well. Transmute recolours GTK's own themes into an
+`athanor` GTK theme with square corners and Vellum, and draws an icon theme in
+the Athanor font's line: folders are a seal, files a tablet and apps a ring,
+each with a sign at the centre. An app without a sign gets its initial.
+Sidebar and toolbar icons are the font's signs at 16 px.
+
 ## The Levels
 
 The seven workspaces are dungeon levels. There's one for each classical planet

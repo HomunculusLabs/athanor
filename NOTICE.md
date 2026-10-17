@@ -26,6 +26,11 @@ These are included in `fonts/`:
 - MEK Mono, copyright 2023 Michael Alexander (MEK.txt), included with the
   author's permission
 
+`src/athanor/adwaita/` holds GTK's own stylesheets (Adwaita for GTK 3 and the
+default theme for GTK 4), taken unchanged from GTK 3.24 and 4.22, copyright the
+GTK Team, under the [LGPL 2.1 or later](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html).
+`athanor transmute` recolours them for each scheme.
+
 The installer downloads the rest:
 
 - IBM VGA 8x16, Compaq Thin 8x16, Tandy 2000 and AT&T PC6300 from VileR's

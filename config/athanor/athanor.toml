@@ -27,12 +27,26 @@ terminal_font = "tandy"
 icons = true
 # Give apps a ring with a sign or their initial too. Needs icons = true.
 app_icons = true
+# Theme GTK apps (the file manager, file pickers) in the scheme, with Vellum and
+# square corners.
+gtk = true
 
 [folders]
 # Give a folder one of the signs: sol, recipe, water, mercury, eye, fire,
 # ouroboros, caput or bindu. Home, Documents, Downloads, Music, Pictures and
 # the trash have theirs already.
 # "~/projects" = "fire"
+
+[folder_signs]
+# Every folder directly inside these gets a sign in its seal. A word in its name
+# can call for one (music, photos, notes, farm and so on); otherwise it gets a
+# bija or a glyph picked from its name. Remove a path to give its folders the
+# plain bindu again.
+inside = ["~"]
+
+[folder_signs.words]
+# Your own words, tried before Athanor's. A word may use * as a wildcard.
+# "rec*" = "recipe"
 
 [transmute]
 # Change scheme with the time of day: umber at night, then vellum, orpiment

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from athanor import cli, config, moon
+from athanor import almanac, cli, config, moon
 
 
 def test_position_matches_meeus_example_47a():
@@ -42,6 +42,13 @@ def test_bar_markup_carries_planet_and_moon_signs():
     assert cli.SIGN_FONT in text
     assert text.index("♂") < text.index("☽")  # the day of Mars, the hour of the Moon
     assert 'fallback="false"' in text
+
+
+def test_moon_signs_ink_the_light():
+    # Light ink on a dark bar: a new moon is the empty ring, a full moon solid.
+    assert almanac.lit_sign(0) == "\U0001f315"
+    assert almanac.lit_sign(4) == "\U0001f311"
+    assert almanac.lit_sign(1) == "\U0001f316"  # waxing crescent: ink on the right
 
 
 def test_moon_line_names_the_constellation_and_day():

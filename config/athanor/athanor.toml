@@ -55,3 +55,10 @@ stages = false
 
 [tarot]
 on_login = true
+
+[boot]
+# The scheme `athanor boot` paints the bootloader, splash, console and greeter in.
+scheme = "umber"
+# Log in straight after the disk is unlocked, so the passphrase is the only
+# password at boot. Logging out still shows the greeter.
+autologin = false

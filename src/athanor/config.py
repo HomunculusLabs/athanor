@@ -49,6 +49,7 @@ class Config:
     folder_signs: list[str] = field(default_factory=list)
     words: dict[str, str] = field(default_factory=dict)
     boot_scheme: str = "umber"
+    boot_autologin: bool = False
 
 
 def load() -> Config:
@@ -84,4 +85,5 @@ def load() -> Config:
         folder_signs=[str(p) for p in raw.get("folder_signs", {}).get("inside", [])],
         words={str(k): str(v) for k, v in raw.get("folder_signs", {}).get("words", {}).items()},
         boot_scheme=str(raw.get("boot", {}).get("scheme", Config.boot_scheme)),
+        boot_autologin=bool(raw.get("boot", {}).get("autologin", False)),
     )

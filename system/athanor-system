@@ -3,7 +3,8 @@
 # ~/.local/share/athanor/system. Run with sudo.
 #
 #   sudo athanor-system install     Limine colours/plate/font, Plymouth splash, console
-#                                   palette and font, greeter (greetd + cage + Quickshell);
+#                                   palette and font, greeter (greetd + cage + Quickshell),
+#                                   autologin after unlocking if [boot] autologin is set;
 #                                   backs up every file it changes first
 #   sudo athanor-system uninstall   put the backed-up settings back
 #   sudo athanor-system status      show what is installed
@@ -126,6 +127,19 @@ vt = 2
 command = "$WRAPPER"
 user = "greeter"
 EOF
+  # [boot] autologin: greetd starts the session once per boot, straight after the disk is
+  # unlocked; logging out lands on the greeter.
+  local auto
+  auto=$(cat "$SRC/autologin" 2>/dev/null || true)
+  if [[ -n $auto ]]; then
+    getent passwd "$auto" >/dev/null || { echo "athanor-system: autologin user $auto does not exist" >&2; exit 1; }
+    cat >> /etc/greetd/config.toml <<EOF
+
+[initial_session]
+command = "$SESSION_CMD"
+user = "$auto"
+EOF
+  fi
 
   echo "== console palette and font"
   install -d "$(dirname "$VTRGB")"
@@ -192,7 +206,7 @@ uninstall_all() {
 }
 
 status() {
-  echo "greetd:   $(grep '^command' /etc/greetd/config.toml)"
+  echo "greetd:   $(grep -m1 '^command' /etc/greetd/config.toml)$(grep -q '^\[initial_session\]' /etc/greetd/config.toml && echo ', autologin at boot')"
   echo "plymouth: $(plymouth-set-default-theme)"
   echo "console:  $(grep '^FONT' /etc/vconsole.conf || echo 'default font'), palette unit $(systemctl is-enabled athanor-vtrgb.service 2>/dev/null || echo absent)"
   echo "limine:   $(grep -q '^# >>> athanor >>>' "$LIMINE_CONF" 2>/dev/null && echo 'Athanor block present' || echo 'no Athanor block')"

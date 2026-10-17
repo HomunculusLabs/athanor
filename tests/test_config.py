@@ -31,3 +31,11 @@ def test_the_character_can_be_named(tmp_path, monkeypatch):
     text = '[character]\nname = "Prospero"\ntitle = "the Magus"\nrace = "Arch Linux"\n'
     cfg = _load(tmp_path, monkeypatch, text)
     assert (cfg.name, cfg.title, cfg.race) == ("Prospero", "the Magus", "Arch Linux")
+
+
+def test_autologin_is_off_unless_asked_for(tmp_path, monkeypatch):
+    assert not _load(tmp_path, monkeypatch, "").boot_autologin
+
+
+def test_autologin_can_be_asked_for(tmp_path, monkeypatch):
+    assert _load(tmp_path, monkeypatch, "[boot]\nautologin = true\n").boot_autologin

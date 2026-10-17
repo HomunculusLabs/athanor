@@ -257,6 +257,9 @@ def stage(scheme_name: str | None = None, size: tuple[int, int] | None = None, l
 
     write_atomic(out / "scheme", scheme.name + "\n")
     write_atomic(out / "user", user + "\n")
+    if cfg.boot_autologin:
+        # Unlocking the disk is the only password at boot; logging out still shows the greeter.
+        write_atomic(out / "autologin", user + "\n")
     return out
 
 

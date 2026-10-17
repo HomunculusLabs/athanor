@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+# athanor-system: install the root-owned screens that `athanor boot` stages in
+# ~/.local/share/athanor/system. Run with sudo.
+#
+#   sudo athanor-system install     Limine colours/plate/font, Plymouth splash, console
+#                                   palette and font, greeter (greetd + cage + Quickshell);
+#                                   backs up every file it changes first
+#   sudo athanor-system uninstall   put the backed-up settings back
+#   sudo athanor-system status      show what is installed
+#
+# Safety: the greeter wrapper falls back to tuigreet if the graphical greeter exits with an
+# error, a text login is always on Ctrl+Alt+F3, and greetd is not restarted (that would end
+# the running session); the greeter shows at the next login.
+set -euo pipefail
+
+OWNER=${SUDO_USER:-$(logname 2>/dev/null || echo root)}
+OWNER_HOME=$(getent passwd "$OWNER" | cut -d: -f6)
+SRC="$OWNER_HOME/.local/share/athanor/system"
+BACKUP=/var/backups/athanor
+GREETER_DIR=/usr/local/share/athanor/greeter
+GREETER_CACHE=/var/cache/athanor-greeter
+WRAPPER=/usr/local/bin/athanor-greeter
+FONT_DIR=/usr/local/share/fonts/athanor
+FONT_CONF=/etc/fonts/conf.d/61-athanor-pixel.conf
+CONSOLE_FONT=/usr/share/kbd/consolefonts/athanor-mekmono.psf.gz
+VTRGB=/etc/athanor/vtrgb
+UNIT=/etc/systemd/system/athanor-vtrgb.service
+PLY=/usr/share/plymouth/themes/athanor
+LIMINE_CONF=/boot/limine.conf
+LIMINE_DIR=/boot/athanor
+SESSION_CMD="uwsm start -e -D Hyprland hyprland.desktop"
+
+# Header keys the Athanor block owns; any older copies are moved aside so ours win.
+LIMINE_KEYS='^(interface_branding(_colou?r)?|interface_help_colou?r(_bright)?|wallpaper(_style)?|backdrop|term_[a-z_]+):'
+LIMINE_COMMENTS='^# (Terminal colors|Text colors)'
+
+need_root() { ((EUID == 0)) || { echo "athanor-system: run with sudo" >&2; exit 1; }; }
+
+backup_once() { # keep the very first original of each file, so repeated installs can't overwrite it
+  local f=$1
+  [[ -e $f && ! -e $BACKUP/orig$f ]] || return 0
+  install -d "$BACKUP/orig$(dirname "$f")"
+  cp -a "$f" "$BACKUP/orig$f"
+}
+
+rebuild_boot() {
+  if command -v limine-mkinitcpio >/dev/null; then limine-mkinitcpio; else mkinitcpio -P; fi
+}
+
+# The lines before the first entry (a line starting with /) are global settings.
+limine_strip() { # drop the Athanor block and any header lines it owns; print the result
+  awk -v keys="$LIMINE_KEYS" -v comments="$LIMINE_COMMENTS" '
+    /^\// { body = 1 }
+    /^# >>> athanor >>>/ { skip = 1 }
+    skip { if (/^# <<< athanor <<</) skip = 0; next }
+    !body && ($0 ~ keys || $0 ~ comments) { next }
+    { print }
+  ' "$LIMINE_CONF"
+}
+
+limine_owned() { # the header lines the block replaces, for uninstall
+  awk -v keys="$LIMINE_KEYS" '/^\// { exit } /^# >>> athanor >>>/ { s = 1 } s { if (/^# <<< athanor <<</) s = 0; next } $0 ~ keys { print }' "$LIMINE_CONF"
+}
+
+limine_insert() { # stdin: config without a block; $1: block file. Block goes after the leading comments.
+  awk -v block="$1" '
+    !done && !/^#/ { while ((getline line < block) > 0) print line; done = 1 }
+    { print }
+    END { if (!done) while ((getline line < block) > 0) print line }
+  '
+}
+
+install_limine() {
+  [[ -f $LIMINE_CONF ]] || { echo "  no $LIMINE_CONF; skipping the bootloader"; return 0; }
+  backup_once "$LIMINE_CONF"
+  [[ -f $BACKUP/limine-header ]] || limine_owned > "$BACKUP/limine-header"
+  install -d "$LIMINE_DIR"
+  install -m 0644 "$SRC/limine/plate.png" "$SRC/limine/vga.f16" "$LIMINE_DIR/"
+  local tmp
+  tmp=$(mktemp)
+  limine_strip | limine_insert "$SRC/limine/limine.conf.athanor" > "$tmp"
+  grep -q '^/' "$tmp" || { rm -f "$tmp"; echo "athanor-system: lost the boot entries editing $LIMINE_CONF; left it alone" >&2; exit 1; }
+  cat "$tmp" > "$LIMINE_CONF"
+  rm -f "$tmp"
+}
+
+install_all() {
+  need_root
+  for d in limine plymouth/athanor console greeter fonts; do
+    [[ -d $SRC/$d ]] || { echo "athanor-system: run \`athanor boot\` first ($SRC/$d missing)" >&2; exit 1; }
+  done
+  command -v cage >/dev/null && command -v quickshell >/dev/null ||
+    { echo "athanor-system: the greeter needs cage and quickshell (pacman -S cage quickshell)" >&2; exit 1; }
+  install -d "$BACKUP"
+  backup_once /etc/greetd/config.toml
+  backup_once /etc/vconsole.conf
+  [[ -f $BACKUP/plymouth-theme ]] || plymouth-set-default-theme > "$BACKUP/plymouth-theme"
+  [[ -f $BACKUP/dg-vtrgb ]] || systemctl is-enabled dg-vtrgb.service > "$BACKUP/dg-vtrgb" 2>/dev/null || true
+
+  echo "== fonts (readable by the greeter and the initramfs)"
+  install -d "$FONT_DIR"
+  install -m 0644 "$SRC"/fonts/*.ttf "$FONT_DIR/"
+  install -m 0644 "$SRC/fonts/61-athanor-pixel.conf" "$FONT_CONF"
+  fc-cache -f "$FONT_DIR" >/dev/null
+
+  echo "== greeter"
+  rm -rf "$GREETER_DIR"
+  install -d "$GREETER_DIR"
+  cp -r "$SRC/greeter/." "$GREETER_DIR/"
+  chmod -R a+rX "$GREETER_DIR"
+  # the greeter user's home is / (read-only), so Quickshell gets its own writable state dir
+  install -d -o greeter -g greeter -m 0750 "$GREETER_CACHE"
+  cat > "$WRAPPER" <<EOF
+#!/bin/sh
+# Athanor greeter; falls back to tuigreet if it fails to start or crashes.
+export XDG_CACHE_HOME=$GREETER_CACHE/cache XDG_STATE_HOME=$GREETER_CACHE/state XDG_CONFIG_HOME=$GREETER_CACHE/config
+cage -s -- quickshell -p $GREETER_DIR || exec tuigreet --cmd '$SESSION_CMD'
+EOF
+  chmod 0755 "$WRAPPER"
+  cat > /etc/greetd/config.toml <<EOF
+# Athanor (athanor-system). Original: $BACKUP/orig/etc/greetd/config.toml
+[terminal]
+vt = 2
+
+[default_session]
+command = "$WRAPPER"
+user = "greeter"
+EOF
+
+  echo "== console palette and font"
+  install -d "$(dirname "$VTRGB")"
+  install -m 0644 "$SRC/console/vtrgb" "$VTRGB"
+  if [[ -f $SRC/console/athanor-mekmono.psf.gz ]]; then
+    install -m 0644 "$SRC/console/athanor-mekmono.psf.gz" "$CONSOLE_FONT"
+    if grep -q '^FONT=' /etc/vconsole.conf; then sed -i 's/^FONT=.*/FONT=athanor-mekmono/' /etc/vconsole.conf
+    else echo 'FONT=athanor-mekmono' >> /etc/vconsole.conf; fi
+  fi
+  cat > "$UNIT" <<EOF
+[Unit]
+Description=Athanor console palette
+After=systemd-vconsole-setup.service
+Before=getty.target greetd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/setvtrgb $VTRGB
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl disable dg-vtrgb.service >/dev/null 2>&1 || true
+  systemctl enable athanor-vtrgb.service >/dev/null
+  setvtrgb "$VTRGB" || true
+
+  echo "== bootloader"
+  install_limine
+
+  echo "== boot splash"
+  rm -rf "$PLY"
+  install -d "$PLY"
+  cp -r "$SRC/plymouth/athanor/." "$PLY/"
+  plymouth-set-default-theme athanor
+  rebuild_boot
+
+  echo "done. The bootloader, splash and console change at the next boot; the greeter at the next login."
+  echo "undo: sudo $0 uninstall"
+}
+
+uninstall_all() {
+  need_root
+  [[ -f $BACKUP/orig/etc/greetd/config.toml ]] && cp -a "$BACKUP/orig/etc/greetd/config.toml" /etc/greetd/config.toml
+  [[ -f $BACKUP/orig/etc/vconsole.conf ]] && cp -a "$BACKUP/orig/etc/vconsole.conf" /etc/vconsole.conf
+  if [[ -f $LIMINE_CONF ]]; then
+    local tmp
+    tmp=$(mktemp)
+    limine_strip | limine_insert "${BACKUP}/limine-header" > "$tmp"
+    grep -q '^/' "$tmp" && cat "$tmp" > "$LIMINE_CONF"
+    rm -f "$tmp"
+  fi
+  systemctl disable athanor-vtrgb.service >/dev/null 2>&1 || true
+  rm -f "$UNIT" "$WRAPPER" "$CONSOLE_FONT" "$FONT_CONF"
+  rm -rf "$GREETER_DIR" "$(dirname "$VTRGB")" "$GREETER_CACHE" "$LIMINE_DIR"
+  systemctl daemon-reload
+  if [[ $(cat "$BACKUP/dg-vtrgb" 2>/dev/null) == enabled ]]; then
+    systemctl enable dg-vtrgb.service >/dev/null 2>&1 || true
+  fi
+  plymouth-set-default-theme "$(cat "$BACKUP/plymouth-theme" 2>/dev/null || echo omarchy)"
+  rm -rf "$PLY"
+  rebuild_boot
+  echo "restored. (The fonts in $FONT_DIR are left installed; they are harmless.)"
+}
+
+status() {
+  echo "greetd:   $(grep '^command' /etc/greetd/config.toml)"
+  echo "plymouth: $(plymouth-set-default-theme)"
+  echo "console:  $(grep '^FONT' /etc/vconsole.conf || echo 'default font'), palette unit $(systemctl is-enabled athanor-vtrgb.service 2>/dev/null || echo absent)"
+  echo "limine:   $(grep -q '^# >>> athanor >>>' "$LIMINE_CONF" 2>/dev/null && echo 'Athanor block present' || echo 'no Athanor block')"
+  echo "staged:   $(cat "$SRC/scheme" 2>/dev/null || echo nothing) in $SRC"
+}
+
+case "${1:-}" in
+  install) install_all ;;
+  uninstall) uninstall_all ;;
+  status) status ;;
+  *) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

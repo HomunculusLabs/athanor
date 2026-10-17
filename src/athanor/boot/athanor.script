@@ -1,0 +1,138 @@
+# Athanor boot splash ({{ label }}). Staged by `athanor boot`; edits are overwritten.
+# The lock screen's plate fills the screen; the sigil, the name and the word sit in
+# the lock's text column, to the right of the engraving.
+
+Window.SetBackgroundTopColor({{ bg_f }});
+Window.SetBackgroundBottomColor({{ bg_f }});
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+
+plate.image = Image("plate.png");
+if (plate.image.GetWidth() != W || plate.image.GetHeight() != H)
+  plate.image = plate.image.Scale(W, H);
+plate.sprite = Sprite(plate.image);
+plate.sprite.SetPosition(0, 0, -10);
+
+col_x = Math.Int({{ lock_x }} * W / {{ screen_w }});
+
+sigil.image = Image("sigil.png");
+title.image = Image("title.png");
+sealed.image = Image("sealed.png");
+warming.image = Image("warming.png");
+banked.image = Image("banked.png");
+entry.image = Image("entry.png");
+bullet.image = Image("bullet.png");
+track.image = Image("track.png");
+fill.original = Image("fill.png");
+
+# sigil, title, then the label and the entry (or the progress) below.
+block_h = sigil.image.GetHeight() + 40 + title.image.GetHeight() + 48
+          + sealed.image.GetHeight() + 16 + entry.image.GetHeight();
+top = Math.Int(H / 2 - block_h / 2);
+
+sigil.sprite = Sprite(sigil.image);
+sigil.sprite.SetPosition(col_x, top, 1);
+
+title.y = top + sigil.image.GetHeight() + 40;
+title.sprite = Sprite(title.image);
+title.sprite.SetPosition(col_x, title.y, 1);
+
+label.y = title.y + title.image.GetHeight() + 48;
+entry.y = label.y + sealed.image.GetHeight() + 16;
+
+sealed.sprite = Sprite(sealed.image);
+sealed.sprite.SetPosition(col_x, label.y, 2);
+warming.sprite = Sprite(warming.image);
+warming.sprite.SetPosition(col_x, label.y, 2);
+banked.sprite = Sprite(banked.image);
+banked.sprite.SetPosition(col_x, label.y, 2);
+
+entry.sprite = Sprite(entry.image);
+entry.sprite.SetPosition(col_x, entry.y, 2);
+
+bar.y = entry.y + Math.Int(entry.image.GetHeight() / 2) - 2;
+track.sprite = Sprite(track.image);
+track.sprite.SetPosition(col_x, bar.y, 2);
+fill.sprite = Sprite();
+fill.sprite.SetPosition(col_x, bar.y, 3);
+
+bullets = [];
+global.max_progress = 0;
+
+fun hide_all() {
+  sealed.sprite.SetOpacity(0);
+  warming.sprite.SetOpacity(0);
+  banked.sprite.SetOpacity(0);
+  entry.sprite.SetOpacity(0);
+  track.sprite.SetOpacity(0);
+  fill.sprite.SetOpacity(0);
+  for (i = 0; bullets[i]; i++)
+    bullets[i].SetOpacity(0);
+}
+
+fun show_progress() {
+  hide_all();
+  mode = Plymouth.GetMode();
+  if (mode == "shutdown" || mode == "reboot") {
+    banked.sprite.SetOpacity(1);
+    return;
+  }
+  warming.sprite.SetOpacity(1);
+  track.sprite.SetOpacity(1);
+  fill.sprite.SetOpacity(1);
+}
+
+fun set_progress(progress) {
+  if (progress <= global.max_progress) return;
+  global.max_progress = progress;
+  w = Math.Int(fill.original.GetWidth() * progress);
+  if (w < 1) w = 1;
+  fill.sprite.SetImage(fill.original.Scale(w, fill.original.GetHeight()));
+}
+
+fun password_callback(prompt, count) {
+  hide_all();
+  sealed.sprite.SetOpacity(1);
+  entry.sprite.SetOpacity(1);
+  step = bullet.image.GetWidth() + 6;
+  most = Math.Int((entry.image.GetWidth() - 32) / step);
+  if (count > most) count = most;
+  for (i = 0; i < count; i++) {
+    if (!bullets[i]) {
+      bullets[i] = Sprite(bullet.image);
+      bullets[i].SetPosition(col_x + 16 + i * step,
+                             entry.y + Math.Int((entry.image.GetHeight() - bullet.image.GetHeight()) / 2), 3);
+    }
+    bullets[i].SetOpacity(1);
+  }
+}
+
+fun normal_callback() {
+  show_progress();
+}
+
+fun progress_callback(duration, progress) {
+  set_progress(progress);
+}
+
+Plymouth.SetDisplayPasswordFunction(password_callback);
+Plymouth.SetDisplayNormalFunction(normal_callback);
+Plymouth.SetBootProgressFunction(progress_callback);
+
+message.sprite = Sprite();
+message.sprite.SetPosition(col_x, H - 96, 10);
+
+fun message_callback(text) {
+  message.sprite.SetImage(Image.Text(text, {{ dim_f }}));
+  message.sprite.SetOpacity(1);
+}
+
+fun hide_message_callback(text) {
+  message.sprite.SetOpacity(0);
+}
+
+Plymouth.SetDisplayMessageFunction(message_callback);
+Plymouth.SetHideMessageFunction(hide_message_callback);
+
+show_progress();

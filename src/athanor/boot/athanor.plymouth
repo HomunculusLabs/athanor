@@ -1,0 +1,10 @@
+[Plymouth Theme]
+Name=Athanor
+Description=Athanor boot splash ({{ label }}), staged by athanor boot
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/athanor
+ScriptFile=/usr/share/plymouth/themes/athanor/athanor.script
+ConsoleLogBackgroundColor=0x{{ bg.hex }}
+Font=Vellum 18

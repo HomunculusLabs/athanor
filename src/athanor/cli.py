@@ -105,7 +105,7 @@ def _sign(text: str, color: str, underline: bool = False) -> str:
 
 def _moon_sign(now: datetime) -> str:
     index = int(sky.moon_age(now) / sky.SYNODIC_MONTH * 8 + 0.5) % 8
-    return chr(0x1F311 + index)
+    return almanac.lit_sign(index)
 
 
 def _bar_markup(now: datetime, cfg) -> str:
@@ -383,6 +383,19 @@ def cmd_transmute(args) -> None:
         print("No plates were drawn because ImageMagick is missing. pacman -S imagemagick")
 
 
+def cmd_boot(args) -> None:
+    from . import boot
+
+    size = _size(args.size) if args.size else None
+    try:
+        out = boot.stage(args.scheme, size=size)
+    except (boot.MissingFont, wall.MissingTool) as e:
+        sys.exit(f"athanor boot: {e}")
+    scheme = (out / "scheme").read_text().strip()
+    print(f"The boot screens are staged in {out} ({scheme}).")
+    print("Put them in place with: sudo athanor-system install")
+
+
 def cmd_doctor(args) -> None:
     from . import doctor
 
@@ -640,6 +653,11 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--no-reload", action="store_true", help="render without reloading anything")
     s.add_argument("--size", metavar="WxH", help="screen size")
     s.set_defaults(fn=cmd_transmute)
+
+    s = sub.add_parser("boot", help="stage the bootloader, splash, console and greeter")
+    s.add_argument("scheme", nargs="?", choices=palette.SCHEMES, help="default: [boot] scheme")
+    s.add_argument("--size", metavar="WxH", help="screen size")
+    s.set_defaults(fn=cmd_boot)
 
     s = sub.add_parser("doctor", help="check the install")
     s.add_argument("--json", action="store_true", help="print JSON")

@@ -20,6 +20,12 @@ def test_vtrgb_is_three_rows_of_sixteen():
     assert rows[0].split(",")[0] == "22"  # umber's ink, #16120e
 
 
+def test_issue_names_the_host_and_tty_and_resets_colour():
+    text = boot.issue()
+    assert "\\n" in text and "\\l" in text  # agetty fills in the host and the tty
+    assert text.count("\033[0m") == text.count("\033[") - text.count("\033[0m")
+
+
 def test_limine_block_is_fenced_and_hexless():
     block = boot.limine_block(palette.load("cinnabar"))
     lines = block.strip().splitlines()

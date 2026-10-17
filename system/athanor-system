@@ -95,6 +95,7 @@ install_all() {
   install -d "$BACKUP"
   backup_once /etc/greetd/config.toml
   backup_once /etc/vconsole.conf
+  backup_once /etc/issue
   [[ -f $BACKUP/plymouth-theme ]] || plymouth-set-default-theme > "$BACKUP/plymouth-theme"
   [[ -f $BACKUP/dg-vtrgb ]] || systemctl is-enabled dg-vtrgb.service > "$BACKUP/dg-vtrgb" 2>/dev/null || true
 
@@ -144,6 +145,7 @@ EOF
   echo "== console palette and font"
   install -d "$(dirname "$VTRGB")"
   install -m 0644 "$SRC/console/vtrgb" "$VTRGB"
+  [[ -f $SRC/console/issue ]] && install -m 0644 "$SRC/console/issue" /etc/issue
   if [[ -f $SRC/console/athanor-mekmono.psf.gz ]]; then
     install -m 0644 "$SRC/console/athanor-mekmono.psf.gz" "$CONSOLE_FONT"
     if grep -q '^FONT=' /etc/vconsole.conf; then sed -i 's/^FONT=.*/FONT=athanor-mekmono/' /etc/vconsole.conf
@@ -185,6 +187,7 @@ uninstall_all() {
   need_root
   [[ -f $BACKUP/orig/etc/greetd/config.toml ]] && cp -a "$BACKUP/orig/etc/greetd/config.toml" /etc/greetd/config.toml
   [[ -f $BACKUP/orig/etc/vconsole.conf ]] && cp -a "$BACKUP/orig/etc/vconsole.conf" /etc/vconsole.conf
+  [[ -f $BACKUP/orig/etc/issue ]] && cp -a "$BACKUP/orig/etc/issue" /etc/issue
   if [[ -f $LIMINE_CONF ]]; then
     local tmp
     tmp=$(mktemp)

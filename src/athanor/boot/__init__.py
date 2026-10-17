@@ -118,6 +118,16 @@ def vtrgb(scheme: palette.Scheme) -> str:
     return "\n".join(",".join(str(c[i]) for c in rgb) for i in range(3)) + "\n"
 
 
+def issue() -> str:
+    """The text console's login banner (/etc/issue). Colours are ANSI slots, which vtrgb
+    has already turned into the scheme: 3 is the active ochre, 8 the dim ink."""
+    esc = "\033"
+    return (
+        f"\n  {esc}[33mATHANOR{esc}[0m  {esc}[90m\\n · \\l{esc}[0m\n"
+        f"  {esc}[90mThe vessel is sealed. Speak the word.{esc}[0m\n\n"
+    )
+
+
 def console_font() -> Path | None:
     """MEK Mono for the console, as the terminals have it. Destroyer Gray left a PSF of it."""
     for path in (
@@ -220,6 +230,7 @@ def stage(scheme_name: str | None = None, size: tuple[int, int] | None = None, l
     con = out / "console"
     con.mkdir(parents=True)
     write_atomic(con / "vtrgb", vtrgb(scheme))
+    write_atomic(con / "issue", issue())
     psf = console_font()
     if psf:
         shutil.copyfile(psf, con / "athanor-mekmono.psf.gz")

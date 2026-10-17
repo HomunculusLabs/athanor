@@ -9,6 +9,8 @@ hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 
 hl.env("XCURSOR_THEME", "athanor")
 hl.env("XCURSOR_SIZE", "24")
+-- Omarchy's summoned popups (menu, polkit, clipboard, emoji) in the bar's face.
+hl.env("OMARCHY_MENU_FONT", "Vellum")
 
 hl.config({
     general = {
